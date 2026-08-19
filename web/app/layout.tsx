@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "文档阅览室 · Markdown 阅读与导出",
-  description: "本地 Markdown 文档阅读、导航与 DOCX 导出工具。",
+  title: "文档阅览室 · 文档在线阅读与导出",
+  description: "在线阅读 Markdown 与 PDF 文档，并支持下载或导出 DOCX。",
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

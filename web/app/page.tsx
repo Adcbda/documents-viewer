@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { BookOpenText, CheckCircle2, Download, FileText, LoaderCircle, Menu, Search, X } from "lucide-react";
+import { BookOpenText, CheckCircle2, Download, ExternalLink, FileText, LoaderCircle, Menu, Search, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-type LibraryDocument = { id: string; title: string; file: string };
+type LibraryDocument = {
+  id: string;
+  title: string;
+  file: string;
+  kind: "markdown" | "pdf";
+  sourceFile?: string;
+};
 type Heading = { id: string; level: number; text: string };
 
 function slugify(value: string, index: number) {
@@ -35,6 +41,10 @@ function resolveLibraryUrl(documentPath: string, source?: string) {
   return `/library/${baseParts.map(encodeURIComponent).join("/")}`;
 }
 
+function getLibraryFileUrl(file: string) {
+  return `/library/${file.split("/").map(encodeURIComponent).join("/")}`;
+}
+
 export default function Home() {
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [activeDocument, setActiveDocument] = useState<LibraryDocument | null>(null);
@@ -57,7 +67,9 @@ export default function Home() {
   useEffect(() => {
     if (!activeDocument) return;
     setMarkdown("");
-    fetch(`/library/${activeDocument.file.split("/").map(encodeURIComponent).join("/")}`)
+    setError("");
+    if (activeDocument.kind === "pdf") return;
+    fetch(getLibraryFileUrl(activeDocument.file))
       .then((response) => {
         if (!response.ok) throw new Error("无法读取 Markdown 文档");
         return response.text();
@@ -68,6 +80,8 @@ export default function Home() {
 
   const headings = useMemo(() => findHeadings(markdown), [markdown]);
   const filteredDocuments = documents.filter((document) => document.title.toLowerCase().includes(query.toLowerCase()));
+  const activeFileUrl = activeDocument ? getLibraryFileUrl(activeDocument.file) : "";
+  const sourceFileUrl = activeDocument?.sourceFile ? getLibraryFileUrl(activeDocument.sourceFile) : "";
   const exportDocument = async () => {
     if (!activeDocument || !markdown || exportState === "working") return;
     setExportState("working");
@@ -101,10 +115,14 @@ export default function Home() {
         </a>
         <div className="topbar-spacer" />
         <span className="local-badge"><i /> 本地内容</span>
-        <button className="export-button" type="button" disabled={!markdown || exportState === "working"} onClick={exportDocument}>
-          {exportState === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
-          {exportState === "working" ? "正在生成…" : exportState === "done" ? "已导出" : "导出 DOCX"}
-        </button>
+        {activeDocument?.kind === "pdf" && sourceFileUrl ? (
+          <a className="export-button" href={sourceFileUrl} download><Download size={17} />下载原始 DOCX</a>
+        ) : (
+          <button className="export-button" type="button" disabled={!markdown || exportState === "working"} onClick={exportDocument}>
+            {exportState === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
+            {exportState === "working" ? "正在生成…" : exportState === "done" ? "已导出" : "导出 DOCX"}
+          </button>
+        )}
       </header>
 
       <div className="workspace">
@@ -115,16 +133,31 @@ export default function Home() {
           <nav className="document-list" aria-label="文档列表">
             {filteredDocuments.map((document) => (
               <button key={document.id} className={document.id === activeDocument?.id ? "document-item active" : "document-item"} onClick={() => { setActiveDocument(document); setSidebarOpen(false); }}>
-                <FileText size={18} /><span><strong>{document.title}</strong><small>Markdown 文档</small></span>
+                <FileText size={18} /><span><strong>{document.title}</strong><small>{document.kind === "pdf" ? "PDF 在线预览" : "Markdown 文档"}</small></span>
               </button>
             ))}
           </nav>
-          <div className="source-note"><span>内容目录</span><code>server/</code></div>
+          <div className="source-note"><span>文档来源</span><code>server/</code></div>
         </aside>
 
         <section className="document-stage" id="top">
           {error ? (
             <div className="empty-state"><FileText size={30} /><h1>文档暂时无法打开</h1><p>{error}</p></div>
+          ) : activeDocument?.kind === "pdf" ? (
+            <section className="pdf-paper" aria-label={`${activeDocument.title} PDF 预览`}>
+              <header className="pdf-toolbar">
+                <span><FileText size={18} /><strong>{activeDocument.title}</strong><small>PDF 在线预览</small></span>
+                <a href={activeFileUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} />新窗口打开</a>
+              </header>
+              <object className="pdf-viewer" data={`${activeFileUrl}#view=FitH&toolbar=1&navpanes=0`} type="application/pdf">
+                <div className="pdf-fallback">
+                  <FileText size={36} />
+                  <h1>浏览器无法内嵌显示 PDF</h1>
+                  <p>你仍然可以在新窗口中打开并浏览这份文档。</p>
+                  <a href={activeFileUrl} target="_blank" rel="noreferrer">打开 PDF</a>
+                </div>
+              </object>
+            </section>
           ) : !markdown ? (
             <div className="loading-state"><span /><p>正在整理文档版面…</p></div>
           ) : (
@@ -144,7 +177,12 @@ export default function Home() {
         <aside className="toc-panel">
           <p className="toc-title">本文目录</p>
           <nav aria-label="本文目录">
-            {headings.filter((heading) => heading.level === 2 || heading.level === 3).map((heading) => (
+            {activeDocument?.kind === "pdf" ? (
+              <>
+                <a href={activeFileUrl} target="_blank" rel="noreferrer">新窗口打开 PDF</a>
+                {sourceFileUrl && <a href={sourceFileUrl} download>下载原始 DOCX</a>}
+              </>
+            ) : headings.filter((heading) => heading.level === 2 || heading.level === 3).map((heading) => (
               <a key={heading.id} href={`#${heading.id}`} className={`toc-level-${heading.level}`}>{heading.text}</a>
             ))}
           </nav>
