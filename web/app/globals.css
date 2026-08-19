@@ -29,8 +29,11 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .local-badge { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
 .local-badge i { width: 7px; height: 7px; background: #2a9d74; border-radius: 999px; box-shadow: 0 0 0 4px #e1f3eb; }
 .export-button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 0; border-radius: 9px; background: var(--green); color: white; font-weight: 650; font-size: 13px; text-decoration: none; box-shadow: 0 5px 14px rgba(22, 117, 101, .2); cursor: pointer; }
+.export-actions { display: flex; align-items: center; gap: 8px; }
+.export-button-secondary { border: 1px solid #cbded8; background: #f5faf8; color: var(--green-dark); box-shadow: none; }
 .export-button:disabled { opacity: .72; cursor: wait; }
 .export-button:not(:disabled):hover { background: var(--green-dark); transform: translateY(-1px); }
+.export-button-secondary:not(:disabled):hover { background: var(--green-pale); color: var(--green-dark); }
 .export-button:focus-visible, .icon-button:focus-visible, .document-item:focus-visible, .toc-panel a:focus-visible { outline: 3px solid rgba(22, 117, 101, .25); outline-offset: 2px; }
 .spinning { animation: spin .8s linear infinite; }
 .icon-button { border: 0; background: transparent; color: var(--ink); padding: 8px; display: grid; place-items: center; cursor: pointer; }
@@ -137,9 +140,26 @@ button, a { -webkit-tap-highlight-color: transparent; }
   .markdown-paper table { display: block; overflow-x: auto; white-space: nowrap; }
   .export-button { padding: 0 11px; font-size: 12px; }
 }
+@media (max-width: 520px) {
+  .topbar { gap: 5px; }
+  .brand { gap: 7px; }
+  .brand > span:last-child { display: none; }
+  .export-actions { gap: 5px; }
+  .export-button { width: 40px; padding: 0; }
+  .export-button span { display: none; }
+}
 @media print {
+  @page { size: A4; margin: 17mm 16mm 18mm; }
+  html, body, .app-shell, .workspace, .document-stage { background: white !important; }
   .topbar, .sidebar, .toc-panel { display: none !important; }
   .workspace { display: block; padding: 0; }
   .document-stage { padding: 0; }
-  .markdown-paper { max-width: none; padding: 0; border: 0; box-shadow: none; }
+  .markdown-paper { max-width: none; min-height: 0; padding: 0; border: 0; box-shadow: none; }
+  .markdown-paper h1, .markdown-paper h2, .markdown-paper h3, .markdown-paper h4,
+  .markdown-paper blockquote, .markdown-paper pre, .markdown-paper table,
+  .markdown-paper img { break-inside: avoid; page-break-inside: avoid; }
+  .markdown-paper h1, .markdown-paper h2, .markdown-paper h3, .markdown-paper h4 { break-after: avoid; page-break-after: avoid; }
+  .markdown-paper a { color: inherit; text-decoration-color: #91aaa3; }
+  .markdown-paper pre, .markdown-paper pre code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+  .document-footer { break-inside: avoid; page-break-inside: avoid; }
 }

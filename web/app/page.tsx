@@ -13,6 +13,8 @@ type LibraryDocument = {
   sourceFile?: string;
 };
 type Heading = { id: string; level: number; text: string };
+type ExportFormat = "docx" | "pdf";
+type ExportState = { format: ExportFormat | null; status: "idle" | "working" | "done" | "error" };
 
 function slugify(value: string, index: number) {
   const slug = value.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
@@ -52,7 +54,7 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState("");
-  const [exportState, setExportState] = useState<"idle" | "working" | "done" | "error">("idle");
+  const [exportState, setExportState] = useState<ExportState>({ format: null, status: "idle" });
 
   useEffect(() => {
     fetch("/library/index.json")
@@ -68,6 +70,7 @@ export default function Home() {
     if (!activeDocument) return;
     setMarkdown("");
     setError("");
+    setExportState({ format: null, status: "idle" });
     if (activeDocument.kind === "pdf") return;
     fetch(getLibraryFileUrl(activeDocument.file))
       .then((response) => {
@@ -82,18 +85,46 @@ export default function Home() {
   const filteredDocuments = documents.filter((document) => document.title.toLowerCase().includes(query.toLowerCase()));
   const activeFileUrl = activeDocument ? getLibraryFileUrl(activeDocument.file) : "";
   const sourceFileUrl = activeDocument?.sourceFile ? getLibraryFileUrl(activeDocument.sourceFile) : "";
-  const exportDocument = async () => {
-    if (!activeDocument || !markdown || exportState === "working") return;
-    setExportState("working");
+  const finishExport = (format: ExportFormat, status: "done" | "error") => {
+    setExportState({ format, status });
+    window.setTimeout(() => setExportState({ format: null, status: "idle" }), status === "done" ? 2600 : 3200);
+  };
+  const exportDocx = async () => {
+    if (!activeDocument || !markdown || exportState.status === "working") return;
+    setExportState({ format: "docx", status: "working" });
     try {
       const { exportMarkdownToDocx } = await import("../lib/export-docx");
       await exportMarkdownToDocx(markdown, activeDocument.file, activeDocument.title);
-      setExportState("done");
-      window.setTimeout(() => setExportState("idle"), 2600);
+      finishExport("docx", "done");
     } catch (reason) {
       console.error(reason);
-      setExportState("error");
-      window.setTimeout(() => setExportState("idle"), 3200);
+      finishExport("docx", "error");
+    }
+  };
+  const exportPdf = async () => {
+    if (!activeDocument || !markdown || exportState.status === "working") return;
+    setExportState({ format: "pdf", status: "working" });
+    try {
+      const images = Array.from(window.document.querySelectorAll<HTMLImageElement>("[data-markdown-document] img"));
+      const assetsReady = Promise.allSettled([
+        window.document.fonts?.ready,
+        ...images.map((image) => image.complete ? image.decode().catch(() => undefined) : new Promise<void>((resolve) => {
+          image.addEventListener("load", () => resolve(), { once: true });
+          image.addEventListener("error", () => resolve(), { once: true });
+        })),
+      ]);
+      await Promise.race([assetsReady, new Promise((resolve) => window.setTimeout(resolve, 3000))]);
+      const previousTitle = window.document.title;
+      try {
+        window.document.title = activeDocument.title.replace(/[<>:"/\\|?*]+/g, "-");
+        window.print();
+      } finally {
+        window.document.title = previousTitle;
+      }
+      finishExport("pdf", "done");
+    } catch (reason) {
+      console.error(reason);
+      finishExport("pdf", "error");
     }
   };
   let headingIndex = 0;
@@ -118,10 +149,16 @@ export default function Home() {
         {activeDocument?.kind === "pdf" && sourceFileUrl ? (
           <a className="export-button" href={sourceFileUrl} download><Download size={17} />下载原始 DOCX</a>
         ) : (
-          <button className="export-button" type="button" disabled={!markdown || exportState === "working"} onClick={exportDocument}>
-            {exportState === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
-            {exportState === "working" ? "正在生成…" : exportState === "done" ? "已导出" : "导出 DOCX"}
-          </button>
+          <div className="export-actions" aria-label="导出 Markdown 文档">
+            <button className="export-button export-button-secondary" type="button" disabled={!markdown || exportState.status === "working"} onClick={exportDocx} aria-label="导出 DOCX">
+              {exportState.format === "docx" && exportState.status === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState.format === "docx" && exportState.status === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
+              <span>{exportState.format === "docx" && exportState.status === "working" ? "正在生成…" : exportState.format === "docx" && exportState.status === "done" ? "已导出" : "导出 DOCX"}</span>
+            </button>
+            <button className="export-button" type="button" disabled={!markdown || exportState.status === "working"} onClick={exportPdf} aria-label="导出 PDF">
+              {exportState.format === "pdf" && exportState.status === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState.format === "pdf" && exportState.status === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
+              <span>{exportState.format === "pdf" && exportState.status === "working" ? "正在准备…" : exportState.format === "pdf" && exportState.status === "done" ? "已打开" : "导出 PDF"}</span>
+            </button>
+          </div>
         )}
       </header>
 
@@ -161,7 +198,7 @@ export default function Home() {
           ) : !markdown ? (
             <div className="loading-state"><span /><p>正在整理文档版面…</p></div>
           ) : (
-            <article className="markdown-paper">
+            <article className="markdown-paper" data-markdown-document>
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
                 h1: headingComponent(1), h2: headingComponent(2), h3: headingComponent(3),
                 img: ({ src, alt }) => (
@@ -188,8 +225,8 @@ export default function Home() {
           </nav>
         </aside>
       </div>
-      {exportState === "error" && <div className="toast error-toast" role="alert">导出失败，请稍后重试</div>}
-      {exportState === "done" && <div className="toast success-toast" role="status">DOCX 已保存到下载目录</div>}
+      {exportState.status === "error" && <div className="toast error-toast" role="alert">导出失败，请稍后重试</div>}
+      {exportState.status === "done" && <div className="toast success-toast" role="status">{exportState.format === "pdf" ? "请在打印窗口中选择“另存为 PDF”" : "DOCX 已保存到下载目录"}</div>}
     </main>
   );
 }

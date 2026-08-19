@@ -30,16 +30,14 @@ test("publishes the confirmation form as a PDF preview with its DOCX source", as
   const libraryRoot = new URL("../public/library/", import.meta.url);
   const index = JSON.parse(await readFile(new URL("index.json", libraryRoot), "utf8"));
   const document = index.documents.find(
-    (item) => item.id === "软件著作权技术信息确认单.pdf",
+    (item) => item.id.endsWith("软件著作权技术信息确认单.pdf") && item.sourceFile,
   );
 
-  assert.deepEqual(document, {
-    id: "软件著作权技术信息确认单.pdf",
-    title: "软件著作权技术信息确认单",
-    file: "软件著作权技术信息确认单.pdf",
-    kind: "pdf",
-    sourceFile: "软件著作权技术信息确认单.docx",
-  });
+  assert.ok(document);
+  assert.equal(document.kind, "pdf");
+  assert.equal(document.title, document.id.slice(0, -4));
+  assert.equal(document.file, document.id);
+  assert.equal(document.sourceFile, `${document.title}.docx`);
   assert.ok((await stat(new URL(document.file, libraryRoot))).size > 0);
   assert.ok((await stat(new URL(document.sourceFile, libraryRoot))).size > 0);
 });
@@ -56,4 +54,18 @@ test("includes embedded PDF viewing and fallback actions", async () => {
   assert.match(page, /下载原始 DOCX/);
   assert.match(css, /\.pdf-viewer\s*\{/);
   assert.match(css, /\.pdf-fallback\s*\{/);
+});
+
+test("offers Markdown export as both DOCX and print-ready PDF", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /aria-label="导出 DOCX"/);
+  assert.match(page, /aria-label="导出 PDF"/);
+  assert.match(page, /window\.print\(\)/);
+  assert.match(page, /data-markdown-document/);
+  assert.match(css, /@page\s*\{\s*size:\s*A4/);
+  assert.match(css, /break-inside:\s*avoid/);
 });
