@@ -68,9 +68,6 @@ export default function Home() {
 
   useEffect(() => {
     if (!activeDocument) return;
-    setMarkdown("");
-    setError("");
-    setExportState({ format: null, status: "idle" });
     if (activeDocument.kind === "pdf") return;
     fetch(getLibraryFileUrl(activeDocument.file))
       .then((response) => {
@@ -85,6 +82,13 @@ export default function Home() {
   const filteredDocuments = documents.filter((document) => document.title.toLowerCase().includes(query.toLowerCase()));
   const activeFileUrl = activeDocument ? getLibraryFileUrl(activeDocument.file) : "";
   const sourceFileUrl = activeDocument?.sourceFile ? getLibraryFileUrl(activeDocument.sourceFile) : "";
+  const selectDocument = (document: LibraryDocument) => {
+    setActiveDocument(document);
+    setMarkdown("");
+    setError("");
+    setExportState({ format: null, status: "idle" });
+    setSidebarOpen(false);
+  };
   const finishExport = (format: ExportFormat, status: "done" | "error") => {
     setExportState({ format, status });
     window.setTimeout(() => setExportState({ format: null, status: "idle" }), status === "done" ? 2600 : 3200);
@@ -169,7 +173,7 @@ export default function Home() {
           <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索文档" aria-label="搜索文档" /></label>
           <nav className="document-list" aria-label="文档列表">
             {filteredDocuments.map((document) => (
-              <button key={document.id} className={document.id === activeDocument?.id ? "document-item active" : "document-item"} onClick={() => { setActiveDocument(document); setSidebarOpen(false); }}>
+              <button key={document.id} className={document.id === activeDocument?.id ? "document-item active" : "document-item"} onClick={() => selectDocument(document)}>
                 <FileText size={18} /><span><strong>{document.title}</strong><small>{document.kind === "pdf" ? "PDF 在线预览" : "Markdown 文档"}</small></span>
               </button>
             ))}
