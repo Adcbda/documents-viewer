@@ -1,0 +1,157 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { BookOpenText, CheckCircle2, Download, FileText, LoaderCircle, Menu, Search, X } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+
+type LibraryDocument = { id: string; title: string; file: string };
+type Heading = { id: string; level: number; text: string };
+
+function slugify(value: string, index: number) {
+  const slug = value.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+  return `${slug || "section"}-${index}`;
+}
+
+function findHeadings(markdown: string): Heading[] {
+  let index = 0;
+  return markdown.split("\n").map((line) => {
+    const match = /^(#{1,3})\s+(.+?)\s*#*$/.exec(line);
+    if (!match) return null;
+    const heading = { id: slugify(match[2], index), level: match[1].length, text: match[2] };
+    index += 1;
+    return heading;
+  }).filter((heading): heading is Heading => heading !== null);
+}
+
+function resolveLibraryUrl(documentPath: string, source?: string) {
+  if (!source || /^(?:https?:|data:|blob:)/i.test(source)) return source ?? "";
+  const baseParts = documentPath.split("/").slice(0, -1);
+  const sourceParts = decodeURIComponent(source).replace(/^\.\//, "").split("/");
+  for (const part of sourceParts) {
+    if (part === "..") baseParts.pop();
+    else if (part !== ".") baseParts.push(part);
+  }
+  return `/library/${baseParts.map(encodeURIComponent).join("/")}`;
+}
+
+export default function Home() {
+  const [documents, setDocuments] = useState<LibraryDocument[]>([]);
+  const [activeDocument, setActiveDocument] = useState<LibraryDocument | null>(null);
+  const [markdown, setMarkdown] = useState("");
+  const [query, setQuery] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [error, setError] = useState("");
+  const [exportState, setExportState] = useState<"idle" | "working" | "done" | "error">("idle");
+
+  useEffect(() => {
+    fetch("/library/index.json")
+      .then((response) => {
+        if (!response.ok) throw new Error("无法读取文档列表");
+        return response.json() as Promise<{ documents: LibraryDocument[] }>;
+      })
+      .then(({ documents: items }) => { setDocuments(items); setActiveDocument(items[0] ?? null); })
+      .catch((reason: Error) => setError(reason.message));
+  }, []);
+
+  useEffect(() => {
+    if (!activeDocument) return;
+    setMarkdown("");
+    fetch(`/library/${activeDocument.file.split("/").map(encodeURIComponent).join("/")}`)
+      .then((response) => {
+        if (!response.ok) throw new Error("无法读取 Markdown 文档");
+        return response.text();
+      })
+      .then(setMarkdown)
+      .catch((reason: Error) => setError(reason.message));
+  }, [activeDocument]);
+
+  const headings = useMemo(() => findHeadings(markdown), [markdown]);
+  const filteredDocuments = documents.filter((document) => document.title.toLowerCase().includes(query.toLowerCase()));
+  const exportDocument = async () => {
+    if (!activeDocument || !markdown || exportState === "working") return;
+    setExportState("working");
+    try {
+      const { exportMarkdownToDocx } = await import("../lib/export-docx");
+      await exportMarkdownToDocx(markdown, activeDocument.file, activeDocument.title);
+      setExportState("done");
+      window.setTimeout(() => setExportState("idle"), 2600);
+    } catch (reason) {
+      console.error(reason);
+      setExportState("error");
+      window.setTimeout(() => setExportState("idle"), 3200);
+    }
+  };
+  let headingIndex = 0;
+  const headingComponent = (level: 1 | 2 | 3) => {
+    const Component = `h${level}` as "h1" | "h2" | "h3";
+    return function MarkdownHeading({ children }: { children?: React.ReactNode }) {
+      const heading = headings[headingIndex++];
+      return <Component id={heading?.id}>{children}</Component>;
+    };
+  };
+
+  return (
+    <main className="app-shell">
+      <header className="topbar">
+        <button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="打开文档导航"><Menu size={20} /></button>
+        <a className="brand" href="#top" aria-label="返回文档顶部">
+          <span className="brand-mark"><BookOpenText size={20} /></span>
+          <span><strong>文档阅览室</strong><small>MARKDOWN DESK</small></span>
+        </a>
+        <div className="topbar-spacer" />
+        <span className="local-badge"><i /> 本地内容</span>
+        <button className="export-button" type="button" disabled={!markdown || exportState === "working"} onClick={exportDocument}>
+          {exportState === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
+          {exportState === "working" ? "正在生成…" : exportState === "done" ? "已导出" : "导出 DOCX"}
+        </button>
+      </header>
+
+      <div className="workspace">
+        {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="关闭导航" />}
+        <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+          <div className="sidebar-heading"><span>文档库</span><button className="icon-button close-sidebar" onClick={() => setSidebarOpen(false)} aria-label="关闭文档导航"><X size={18} /></button></div>
+          <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索文档" aria-label="搜索文档" /></label>
+          <nav className="document-list" aria-label="文档列表">
+            {filteredDocuments.map((document) => (
+              <button key={document.id} className={document.id === activeDocument?.id ? "document-item active" : "document-item"} onClick={() => { setActiveDocument(document); setSidebarOpen(false); }}>
+                <FileText size={18} /><span><strong>{document.title}</strong><small>Markdown 文档</small></span>
+              </button>
+            ))}
+          </nav>
+          <div className="source-note"><span>内容目录</span><code>server/</code></div>
+        </aside>
+
+        <section className="document-stage" id="top">
+          {error ? (
+            <div className="empty-state"><FileText size={30} /><h1>文档暂时无法打开</h1><p>{error}</p></div>
+          ) : !markdown ? (
+            <div className="loading-state"><span /><p>正在整理文档版面…</p></div>
+          ) : (
+            <article className="markdown-paper">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+                h1: headingComponent(1), h2: headingComponent(2), h3: headingComponent(3),
+                img: ({ src, alt }) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={resolveLibraryUrl(activeDocument?.file ?? "", typeof src === "string" ? src : undefined)} alt={alt ?? "文档图片"} loading="lazy" />
+                ),
+              }}>{markdown}</ReactMarkdown>
+              <footer className="document-footer"><span>文档结束</span><p>内容来自本地 Markdown 文件</p></footer>
+            </article>
+          )}
+        </section>
+
+        <aside className="toc-panel">
+          <p className="toc-title">本文目录</p>
+          <nav aria-label="本文目录">
+            {headings.filter((heading) => heading.level === 2 || heading.level === 3).map((heading) => (
+              <a key={heading.id} href={`#${heading.id}`} className={`toc-level-${heading.level}`}>{heading.text}</a>
+            ))}
+          </nav>
+        </aside>
+      </div>
+      {exportState === "error" && <div className="toast error-toast" role="alert">导出失败，请稍后重试</div>}
+      {exportState === "done" && <div className="toast success-toast" role="status">DOCX 已保存到下载目录</div>}
+    </main>
+  );
+}
