@@ -44,6 +44,8 @@ Compose 会把宿主机的 `server` 目录只读挂载到容器的 `/library`：
 
 修改、增加或删除文档后刷新网页即可生效，无需重建镜像或重启容器。代码有更新时，仍需再次执行 `docker compose up -d --build`。
 
+Docker 构建上下文会排除 `server` 和 `web/public/library`，构建阶段也会跳过文档同步，因此镜像层中不包含文档内容。容器必须通过 Compose 挂载或自行挂载文档目录后才能显示文档。
+
 ## 本地部署（Windows / PowerShell）
 
 在项目的 `web` 目录中安装依赖：

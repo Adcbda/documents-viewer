@@ -2,6 +2,7 @@
 .gitignore
 .codex_tmp
 tmp
+server
 
 **/node_modules
 **/.next
@@ -12,6 +13,7 @@ tmp
 **/.tmp-*
 **/*.log
 **/tsconfig.tsbuildinfo
+web/public/library
 
 web/examples
 web/tests

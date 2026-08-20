@@ -1,4 +1,4 @@
-import { cp, mkdir, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,6 +6,18 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectDir = path.resolve(scriptDir, "..");
 const sourceDir = path.resolve(projectDir, "..", "server");
 const outputDir = path.join(projectDir, "public", "library");
+
+if (process.env.SKIP_LIBRARY_SYNC === "1") {
+  await rm(outputDir, { recursive: true, force: true });
+  await mkdir(outputDir, { recursive: true });
+  await writeFile(
+    path.join(outputDir, "index.json"),
+    `${JSON.stringify({ documents: [] }, null, 2)}\n`,
+    "utf8",
+  );
+  console.log("Skipped library content sync for the container image");
+  process.exit(0);
+}
 
 async function findLibraryFiles(directory, relativeDir = "") {
   const entries = await readdir(directory, { withFileTypes: true });

@@ -8,8 +8,9 @@ RUN npm ci
 
 FROM dependencies AS builder
 
+ENV SKIP_LIBRARY_SYNC=1
+
 WORKDIR /app
-COPY server ./server
 COPY web ./web
 
 WORKDIR /app/web
