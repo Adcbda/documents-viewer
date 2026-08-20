@@ -8,6 +8,46 @@ Drizzle support.
 
 - Node.js `>=22.13.0`
 
+## 本地部署（Windows / PowerShell）
+
+在项目的 `web` 目录中安装依赖：
+
+```powershell
+cd D:\project\software-register\web
+npm install
+```
+
+仅在当前电脑访问（开发模式）：
+
+```powershell
+npm run dev
+```
+
+启动后打开 <http://localhost:3000/>。
+
+允许同一局域网内的其他设备访问（开发模式）：
+
+```powershell
+npm run dev -- --hostname 0.0.0.0
+```
+
+终端会输出一个或多个 `Network` 地址，其他设备应访问其中与当前局域网对应的地址，例如 `http://192.168.1.10:3000/`。如无法访问，请确认 Windows 防火墙已允许 Node.js 或 TCP 3000 端口。
+
+> `npm run` 后面的第一个 `--` 不能省略。它用于把 `--hostname 0.0.0.0` 传给 vinext；如果写成 `npm run dev --hostname 0.0.0.0`，npm 会把 `--hostname` 当作自己的配置并产生警告，服务仍只监听 `localhost`。
+
+本地生产模式部署：
+
+```powershell
+npm run build
+npm run start -- --hostname 0.0.0.0
+```
+
+如需更换端口，可追加 `--port`：
+
+```powershell
+npm run dev -- --hostname 0.0.0.0 --port 8080
+```
+
 ## Quick Start
 
 ```bash
