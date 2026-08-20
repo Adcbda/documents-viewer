@@ -14,7 +14,7 @@ type LibraryDocument = {
   sourceFile?: string;
 };
 type Heading = { id: string; level: number; text: string };
-type ExportFormat = "docx" | "pdf";
+type ExportFormat = "markdown" | "docx" | "pdf";
 type ExportState = { format: ExportFormat | null; status: "idle" | "working" | "done" | "error" };
 
 function slugify(value: string, index: number) {
@@ -95,6 +95,18 @@ export default function Home() {
     setExportState({ format, status });
     window.setTimeout(() => setExportState({ format: null, status: "idle" }), status === "done" ? 2600 : 3200);
   };
+  const exportMarkdown = async () => {
+    if (!activeDocument || !markdown || exportState.status === "working") return;
+    setExportState({ format: "markdown", status: "working" });
+    try {
+      const { exportMarkdownBundle } = await import("../lib/export-markdown");
+      await exportMarkdownBundle(markdown, activeDocument.file, activeDocument.title);
+      finishExport("markdown", "done");
+    } catch (reason) {
+      console.error(reason);
+      finishExport("markdown", "error");
+    }
+  };
   const exportDocx = async () => {
     if (!activeDocument || !markdown || exportState.status === "working") return;
     setExportState({ format: "docx", status: "working" });
@@ -156,6 +168,10 @@ export default function Home() {
           <a className="export-button" href={sourceFileUrl} download><Download size={17} />下载原始 DOCX</a>
         ) : (
           <div className="export-actions" aria-label="导出 Markdown 文档">
+            <button className="export-button export-button-secondary" type="button" disabled={!markdown || exportState.status === "working"} onClick={exportMarkdown} aria-label="下载 Markdown">
+              {exportState.format === "markdown" && exportState.status === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState.format === "markdown" && exportState.status === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
+              <span>{exportState.format === "markdown" && exportState.status === "working" ? "正在打包…" : exportState.format === "markdown" && exportState.status === "done" ? "已下载" : "下载 Markdown"}</span>
+            </button>
             <button className="export-button export-button-secondary" type="button" disabled={!markdown || exportState.status === "working"} onClick={exportDocx} aria-label="导出 DOCX">
               {exportState.format === "docx" && exportState.status === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState.format === "docx" && exportState.status === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
               <span>{exportState.format === "docx" && exportState.status === "working" ? "正在生成…" : exportState.format === "docx" && exportState.status === "done" ? "已导出" : "导出 DOCX"}</span>
@@ -232,7 +248,7 @@ export default function Home() {
         </aside>
       </div>
       {exportState.status === "error" && <div className="toast error-toast" role="alert">导出失败，请稍后重试</div>}
-      {exportState.status === "done" && <div className="toast success-toast" role="status">{exportState.format === "pdf" ? "请在打印窗口中选择“另存为 PDF”" : "DOCX 已保存到下载目录"}</div>}
+      {exportState.status === "done" && <div className="toast success-toast" role="status">{exportState.format === "pdf" ? "请在打印窗口中选择“另存为 PDF”" : exportState.format === "markdown" ? "Markdown 下载文件已保存" : "DOCX 已保存到下载目录"}</div>}
     </main>
   );
 }

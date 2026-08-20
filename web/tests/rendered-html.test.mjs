@@ -56,12 +56,14 @@ test("includes embedded PDF viewing and fallback actions", async () => {
   assert.match(css, /\.pdf-fallback\s*\{/);
 });
 
-test("offers Markdown export as both DOCX and print-ready PDF", async () => {
+test("offers Markdown download, DOCX export, and print-ready PDF", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
+  assert.match(page, /aria-label="下载 Markdown"/);
+  assert.match(page, /exportMarkdownBundle\(markdown, activeDocument\.file, activeDocument\.title\)/);
   assert.match(page, /aria-label="导出 DOCX"/);
   assert.match(page, /aria-label="导出 PDF"/);
   assert.match(page, /window\.print\(\)/);
