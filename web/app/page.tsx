@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BookOpenText, CheckCircle2, Download, ExternalLink, FileText, LoaderCircle, Menu, Search, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { countMarkdownLines } from "../lib/markdown-stats";
 
 type LibraryDocument = {
   id: string;
@@ -79,6 +80,7 @@ export default function Home() {
   }, [activeDocument]);
 
   const headings = useMemo(() => findHeadings(markdown), [markdown]);
+  const markdownLineCount = useMemo(() => countMarkdownLines(markdown), [markdown]);
   const filteredDocuments = documents.filter((document) => document.title.toLowerCase().includes(query.toLowerCase()));
   const activeFileUrl = activeDocument ? getLibraryFileUrl(activeDocument.file) : "";
   const sourceFileUrl = activeDocument?.sourceFile ? getLibraryFileUrl(activeDocument.sourceFile) : "";
@@ -210,7 +212,7 @@ export default function Home() {
                   <img src={resolveLibraryUrl(activeDocument?.file ?? "", typeof src === "string" ? src : undefined)} alt={alt ?? "文档图片"} loading="lazy" />
                 ),
               }}>{markdown}</ReactMarkdown>
-              <footer className="document-footer"><span>文档结束</span><p>内容来自本地 Markdown 文件</p></footer>
+              <footer className="document-footer"><span>文档结束</span><p>共 {markdownLineCount.toLocaleString("zh-CN")} 行 · 内容来自本地 Markdown 文件</p></footer>
             </article>
           )}
         </section>

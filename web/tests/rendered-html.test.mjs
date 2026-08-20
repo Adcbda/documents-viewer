@@ -69,3 +69,10 @@ test("offers Markdown export as both DOCX and print-ready PDF", async () => {
   assert.match(css, /@page\s*\{\s*size:\s*A4/);
   assert.match(css, /break-inside:\s*avoid/);
 });
+
+test("shows the Markdown source line count in the document footer", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+
+  assert.match(page, /countMarkdownLines\(markdown\)/);
+  assert.match(page, /共 \{markdownLineCount\.toLocaleString\("zh-CN"\)\} 行/);
+});
