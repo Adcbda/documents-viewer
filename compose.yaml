@@ -1,0 +1,17 @@
+services:
+  web:
+    image: software-register:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+      LIBRARY_DIR: /library
+    volumes:
+      - ./server:/library:ro

@@ -8,6 +8,42 @@ Drizzle support.
 
 - Node.js `>=22.13.0`
 
+## Docker Compose 部署
+
+在仓库根目录执行：
+
+```bash
+docker compose up -d --build
+```
+
+启动后访问 <http://localhost:3000/>。查看状态或日志：
+
+```bash
+docker compose ps
+docker compose logs -f web
+```
+
+默认映射宿主机的 `3000` 端口。若该端口已被占用，可通过环境变量修改宿主机端口；容器内端口保持为 `3000`：
+
+```powershell
+$env:APP_PORT=8080
+docker compose up -d --build
+```
+
+Linux/macOS 可使用 `APP_PORT=8080 docker compose up -d --build`。停止服务：
+
+```bash
+docker compose down
+```
+
+Compose 会把宿主机的 `server` 目录只读挂载到容器的 `/library`：
+
+```text
+./server:/library:ro
+```
+
+修改、增加或删除文档后刷新网页即可生效，无需重建镜像或重启容器。代码有更新时，仍需再次执行 `docker compose up -d --build`。
+
 ## 本地部署（Windows / PowerShell）
 
 在项目的 `web` 目录中安装依赖：
