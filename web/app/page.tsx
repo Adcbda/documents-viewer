@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { BookOpenText, CheckCircle2, Download, ExternalLink, FileText, LoaderCircle, Menu, Search, X } from "lucide-react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { BookOpenText, CheckCircle2, Download, ExternalLink, FileText, LoaderCircle, Menu, Search, Type, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { countMarkdownLines } from "../lib/markdown-stats";
@@ -16,6 +16,26 @@ type LibraryDocument = {
 type Heading = { id: string; level: number; text: string };
 type ExportFormat = "markdown" | "docx" | "pdf";
 type ExportState = { format: ExportFormat | null; status: "idle" | "working" | "done" | "error" };
+type DocumentTypographyStyle = CSSProperties & Record<`--document-${string}`, string>;
+
+const FONT_SIZE_OPTIONS = [
+  { label: "初号", value: 42 },
+  { label: "小初", value: 36 },
+  { label: "一号", value: 26 },
+  { label: "小一", value: 24 },
+  { label: "二号", value: 22 },
+  { label: "小二", value: 18 },
+  { label: "三号", value: 16 },
+  { label: "小三", value: 15 },
+  { label: "四号", value: 14 },
+  { label: "小四", value: 12 },
+  { label: "五号", value: 10.5 },
+  { label: "小五", value: 9 },
+  { label: "六号", value: 7.5 },
+  { label: "小六", value: 6.5 },
+  { label: "七号", value: 5.5 },
+  { label: "八号", value: 5 },
+];
 
 function slugify(value: string, index: number) {
   const slug = value.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
@@ -48,6 +68,57 @@ function getLibraryFileUrl(file: string) {
   return `/library/${file.split("/").map(encodeURIComponent).join("/")}`;
 }
 
+function documentTypographyStyle(bodyFontSize: number): DocumentTypographyStyle {
+  const size = (ratio: number) => `${(bodyFontSize * ratio).toFixed(2)}pt`;
+  return {
+    "--document-body-font-size": `${bodyFontSize}pt`,
+    "--document-title-font-size": size(38 / 21),
+    "--document-heading-1-font-size": size(30 / 21),
+    "--document-heading-2-font-size": size(25 / 21),
+    "--document-heading-3-font-size": size(22 / 21),
+    "--document-code-font-size": size(18 / 21),
+    "--document-table-font-size": size(19 / 21),
+  };
+}
+
+function MarkdownContent({
+  markdown,
+  documentPath,
+  headings,
+  lineCount,
+}: {
+  markdown: string;
+  documentPath: string;
+  headings: Heading[];
+  lineCount: number;
+}) {
+  let headingIndex = 0;
+  const headingComponent = (level: 1 | 2 | 3) => {
+    const Component = `h${level}` as "h1" | "h2" | "h3";
+    return function MarkdownHeading({ children }: { children?: React.ReactNode }) {
+      const heading = headings[headingIndex++];
+      return <Component id={heading?.id}>{children}</Component>;
+    };
+  };
+
+  return (
+    <>
+      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
+        h1: headingComponent(1), h2: headingComponent(2), h3: headingComponent(3),
+        img: ({ src, alt }) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={resolveLibraryUrl(documentPath, typeof src === "string" ? src : undefined)}
+            alt={alt ?? "文档图片"}
+            loading="lazy"
+          />
+        ),
+      }}>{markdown}</ReactMarkdown>
+      <footer className="document-footer"><span>文档结束</span><p>共 {lineCount.toLocaleString("zh-CN")} 行 · 内容来自本地 Markdown 文件</p></footer>
+    </>
+  );
+}
+
 export default function Home() {
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [activeDocument, setActiveDocument] = useState<LibraryDocument | null>(null);
@@ -56,6 +127,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [error, setError] = useState("");
   const [exportState, setExportState] = useState<ExportState>({ format: null, status: "idle" });
+  const [bodyFontSize, setBodyFontSize] = useState(10.5);
 
   useEffect(() => {
     fetch("/library/index.json")
@@ -112,7 +184,7 @@ export default function Home() {
     setExportState({ format: "docx", status: "working" });
     try {
       const { exportMarkdownToDocx } = await import("../lib/export-docx");
-      await exportMarkdownToDocx(markdown, activeDocument.file, activeDocument.title);
+      await exportMarkdownToDocx(markdown, activeDocument.file, activeDocument.title, { bodyFontSize });
       finishExport("docx", "done");
     } catch (reason) {
       console.error(reason);
@@ -145,15 +217,6 @@ export default function Home() {
       finishExport("pdf", "error");
     }
   };
-  let headingIndex = 0;
-  const headingComponent = (level: 1 | 2 | 3) => {
-    const Component = `h${level}` as "h1" | "h2" | "h3";
-    return function MarkdownHeading({ children }: { children?: React.ReactNode }) {
-      const heading = headings[headingIndex++];
-      return <Component id={heading?.id}>{children}</Component>;
-    };
-  };
-
   return (
     <main className="app-shell">
       <header className="topbar">
@@ -168,6 +231,13 @@ export default function Home() {
           <a className="export-button" href={sourceFileUrl} download><Download size={17} />下载原始 DOCX</a>
         ) : (
           <div className="export-actions" aria-label="导出 Markdown 文档">
+            <label className="font-size-control">
+              <Type size={16} aria-hidden="true" />
+              <span>正文字号</span>
+              <select value={bodyFontSize} onChange={(event) => setBodyFontSize(Number(event.target.value))} aria-label="选择 DOCX 正文字号">
+                {FONT_SIZE_OPTIONS.map((fontSize) => <option key={fontSize.label} value={fontSize.value}>{fontSize.label} · {fontSize.value} 磅</option>)}
+              </select>
+            </label>
             <button className="export-button export-button-secondary" type="button" disabled={!markdown || exportState.status === "working"} onClick={exportMarkdown} aria-label="下载 Markdown">
               {exportState.format === "markdown" && exportState.status === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState.format === "markdown" && exportState.status === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
               <span>{exportState.format === "markdown" && exportState.status === "working" ? "正在打包…" : exportState.format === "markdown" && exportState.status === "done" ? "已下载" : "下载 Markdown"}</span>
@@ -220,15 +290,13 @@ export default function Home() {
           ) : !markdown ? (
             <div className="loading-state"><span /><p>正在整理文档版面…</p></div>
           ) : (
-            <article className="markdown-paper" data-markdown-document>
-              <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-                h1: headingComponent(1), h2: headingComponent(2), h3: headingComponent(3),
-                img: ({ src, alt }) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={resolveLibraryUrl(activeDocument?.file ?? "", typeof src === "string" ? src : undefined)} alt={alt ?? "文档图片"} loading="lazy" />
-                ),
-              }}>{markdown}</ReactMarkdown>
-              <footer className="document-footer"><span>文档结束</span><p>共 {markdownLineCount.toLocaleString("zh-CN")} 行 · 内容来自本地 Markdown 文件</p></footer>
+            <article className="markdown-paper markdown-continuous" data-markdown-document style={documentTypographyStyle(bodyFontSize)}>
+              <MarkdownContent
+                markdown={markdown}
+                documentPath={activeDocument?.file ?? ""}
+                headings={headings}
+                lineCount={markdownLineCount}
+              />
             </article>
           )}
         </section>

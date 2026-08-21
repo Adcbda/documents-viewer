@@ -30,7 +30,7 @@ test("publishes the confirmation form as a PDF preview with its DOCX source", as
   const libraryRoot = new URL("../public/library/", import.meta.url);
   const index = JSON.parse(await readFile(new URL("index.json", libraryRoot), "utf8"));
   const document = index.documents.find(
-    (item) => item.id.endsWith("软件著作权技术信息确认单.pdf") && item.sourceFile,
+    (item) => item.kind === "pdf" && item.sourceFile,
   );
 
   assert.ok(document);
@@ -65,16 +65,22 @@ test("offers Markdown download, DOCX export, and print-ready PDF", async () => {
   assert.match(page, /aria-label="下载 Markdown"/);
   assert.match(page, /exportMarkdownBundle\(markdown, activeDocument\.file, activeDocument\.title\)/);
   assert.match(page, /aria-label="导出 DOCX"/);
+  assert.match(page, /aria-label="选择 DOCX 正文字号"/);
+  assert.match(page, /label: "六号", value: 7\.5/);
+  assert.match(page, /\{ bodyFontSize \}/);
   assert.match(page, /aria-label="导出 PDF"/);
   assert.match(page, /window\.print\(\)/);
   assert.match(page, /data-markdown-document/);
   assert.match(css, /@page\s*\{\s*size:\s*A4/);
   assert.match(css, /break-inside:\s*avoid/);
+  assert.match(css, /\.markdown-continuous\s*\{/);
+  assert.doesNotMatch(page, /A4 分页预览|splitCodeBlockAcrossPages|PaginatedMarkdownPreview/);
+  assert.doesNotMatch(css, /markdown-page|pagination-measure|code-(?:truncated|continued|has-continuation)/);
 });
 
 test("shows the Markdown source line count in the document footer", async () => {
   const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
 
   assert.match(page, /countMarkdownLines\(markdown\)/);
-  assert.match(page, /共 \{markdownLineCount\.toLocaleString\("zh-CN"\)\} 行/);
+  assert.match(page, /共 \{lineCount\.toLocaleString\("zh-CN"\)\} 行/);
 });
