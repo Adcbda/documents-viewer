@@ -13,6 +13,7 @@ import {
   TableCell,
   TableLayoutType,
   TableRow,
+  Tab,
   TextRun,
   WidthType,
 } from "docx";
@@ -27,6 +28,12 @@ const TEXT_COLOR = "263B36";
 const GREEN = "167565";
 const LIGHT_GREEN = "E8F2EE";
 const LINE = "D8E1DD";
+
+const CODE_RUN_FORMATTING = {
+  font: "Consolas",
+  color: "E7F1ED",
+  size: 18,
+} as const;
 
 function textRun(text: string, formatting: InlineFormatting = {}) {
   return new TextRun({
@@ -81,6 +88,23 @@ function inlineChildren(nodes: readonly MarkdownNode[] = [], formatting: InlineF
 function getText(node: MarkdownNode): string {
   if ("value" in node && typeof node.value === "string") return node.value;
   return Array.isArray(node.children) ? node.children.map(getText).join("") : "";
+}
+
+function codeRuns(value: string): TextRun[] {
+  const lines = value.split(/\r\n|\r|\n/);
+
+  return lines.flatMap((line, index) => {
+    const children = line.split("\t").flatMap((part, partIndex) => (
+      partIndex === 0 ? [part] : [new Tab(), part]
+    ));
+    const runs = [new TextRun({ ...CODE_RUN_FORMATTING, children })];
+
+    if (index < lines.length - 1) {
+      runs.push(new TextRun({ ...CODE_RUN_FORMATTING, break: 1 }));
+    }
+
+    return runs;
+  });
 }
 
 function resolveLibraryUrl(documentPath: string, source: string) {
@@ -264,7 +288,7 @@ async function blockNode(node: MarkdownNode, documentPath: string, level = 0): P
       return [new Paragraph({
         spacing: { before: 100, after: 180 },
         shading: { type: ShadingType.CLEAR, fill: "172622" },
-        children: [new TextRun({ text: String((node as { value?: string }).value ?? ""), font: "Consolas", color: "E7F1ED", size: 18 })],
+        children: codeRuns(String((node as { value?: string }).value ?? "")),
       })];
     case "thematicBreak":
       return [new Paragraph({ border: { bottom: { style: BorderStyle.SINGLE, color: LINE, size: 4 } }, spacing: { before: 140, after: 180 } })];
@@ -278,7 +302,7 @@ async function blockNode(node: MarkdownNode, documentPath: string, level = 0): P
   }
 }
 
-export async function exportMarkdownToDocx(markdown: string, documentPath: string, title: string) {
+export async function createMarkdownDocxBlob(markdown: string, documentPath: string, title: string) {
   const tree = unified().use(remarkParse).use(remarkGfm).parse(markdown);
   const children: (Paragraph | Table)[] = [];
   for (const node of tree.children) children.push(...await blockNode(node as MarkdownNode, documentPath));
@@ -305,7 +329,11 @@ export async function exportMarkdownToDocx(markdown: string, documentPath: strin
     }],
   });
 
-  const blob = await Packer.toBlob(document);
+  return Packer.toBlob(document);
+}
+
+export async function exportMarkdownToDocx(markdown: string, documentPath: string, title: string) {
+  const blob = await createMarkdownDocxBlob(markdown, documentPath, title);
   const link = window.document.createElement("a");
   link.href = URL.createObjectURL(blob);
   link.download = `${title.replace(/[<>:"/\\|?*]+/g, "-")}.docx`;
