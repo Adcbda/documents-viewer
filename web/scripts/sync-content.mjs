@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const projectDir = path.resolve(scriptDir, "..");
-const sourceDir = path.resolve(projectDir, "..", "server");
+const sourceDir = path.resolve(projectDir, "..", "documents");
 const outputDir = path.join(projectDir, "public", "library");
 
 if (process.env.SKIP_LIBRARY_SYNC === "1") {

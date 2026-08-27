@@ -1,6 +1,9 @@
 services:
   web:
     image: documents-viewer:latest
+    user: "${UID:-1000}:${GID:-1000}"
+    group_add:
+      - "${GID:-1002}"
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,4 +17,4 @@ services:
       PORT: 3000
       LIBRARY_DIR: /library
     volumes:
-      - ./documents:/library:ro
+      - /data/rag/ocr-output:/library:ro

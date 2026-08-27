@@ -1,22 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { BookOpenText, CheckCircle2, Download, ExternalLink, FileText, LoaderCircle, Menu, Search, Type, X } from "lucide-react";
+import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, LoaderCircle, Menu, Search, Type, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { buildDocumentTree, documentMatchesQuery, type DocumentDirectory, type LibraryDocument } from "../lib/document-tree";
 import { countMarkdownLines } from "../lib/markdown-stats";
 
-type LibraryDocument = {
-  id: string;
-  title: string;
-  file: string;
-  kind: "markdown" | "pdf";
-  sourceFile?: string;
-};
 type Heading = { id: string; level: number; text: string };
 type ExportFormat = "markdown" | "docx" | "pdf";
 type ExportState = { format: ExportFormat | null; status: "idle" | "working" | "done" | "error" };
 type DocumentTypographyStyle = CSSProperties & Record<`--document-${string}`, string>;
+type DocumentTreeStyle = CSSProperties & { "--tree-indent": string };
 
 const FONT_SIZE_OPTIONS = [
   { label: "初号", value: 42 },
@@ -119,6 +114,55 @@ function MarkdownContent({
   );
 }
 
+function DocumentTree({
+  directory,
+  activeDocument,
+  selectDocument,
+  depth = 0,
+}: {
+  directory: DocumentDirectory;
+  activeDocument: LibraryDocument | null;
+  selectDocument: (document: LibraryDocument) => void;
+  depth?: number;
+}) {
+  const indentation: DocumentTreeStyle = { "--tree-indent": `${depth * 14}px` };
+
+  return (
+    <>
+      {directory.directories.map((childDirectory) => (
+        <details className="document-folder" key={childDirectory.path} open>
+          <summary style={indentation} title={childDirectory.path}>
+            <ChevronRight className="folder-chevron" size={14} />
+            <Folder size={16} />
+            <span>{childDirectory.name}</span>
+          </summary>
+          <DocumentTree
+            directory={childDirectory}
+            activeDocument={activeDocument}
+            selectDocument={selectDocument}
+            depth={depth + 1}
+          />
+        </details>
+      ))}
+      {directory.documents.map((document) => (
+        <button
+          key={document.id}
+          className={document.id === activeDocument?.id ? "document-item active" : "document-item"}
+          onClick={() => selectDocument(document)}
+          style={indentation}
+          title={document.file}
+        >
+          <FileText size={18} />
+          <span>
+            <strong>{document.title}</strong>
+            <small>{document.kind === "pdf" ? "PDF 在线预览" : "Markdown 文档"}</small>
+          </span>
+        </button>
+      ))}
+    </>
+  );
+}
+
 export default function Home() {
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [activeDocument, setActiveDocument] = useState<LibraryDocument | null>(null);
@@ -153,7 +197,11 @@ export default function Home() {
 
   const headings = useMemo(() => findHeadings(markdown), [markdown]);
   const markdownLineCount = useMemo(() => countMarkdownLines(markdown), [markdown]);
-  const filteredDocuments = documents.filter((document) => document.title.toLowerCase().includes(query.toLowerCase()));
+  const filteredDocuments = useMemo(
+    () => documents.filter((document) => documentMatchesQuery(document, query)),
+    [documents, query],
+  );
+  const documentTree = useMemo(() => buildDocumentTree(filteredDocuments), [filteredDocuments]);
   const activeFileUrl = activeDocument ? getLibraryFileUrl(activeDocument.file) : "";
   const sourceFileUrl = activeDocument?.sourceFile ? getLibraryFileUrl(activeDocument.sourceFile) : "";
   const selectDocument = (document: LibraryDocument) => {
@@ -260,13 +308,10 @@ export default function Home() {
           <div className="sidebar-heading"><span>文档库</span><button className="icon-button close-sidebar" onClick={() => setSidebarOpen(false)} aria-label="关闭文档导航"><X size={18} /></button></div>
           <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索文档" aria-label="搜索文档" /></label>
           <nav className="document-list" aria-label="文档列表">
-            {filteredDocuments.map((document) => (
-              <button key={document.id} className={document.id === activeDocument?.id ? "document-item active" : "document-item"} onClick={() => selectDocument(document)}>
-                <FileText size={18} /><span><strong>{document.title}</strong><small>{document.kind === "pdf" ? "PDF 在线预览" : "Markdown 文档"}</small></span>
-              </button>
-            ))}
+            <DocumentTree directory={documentTree} activeDocument={activeDocument} selectDocument={selectDocument} />
+            {!filteredDocuments.length && <p className="document-list-empty">没有匹配的文档</p>}
           </nav>
-          <div className="source-note"><span>文档来源</span><code>server/</code></div>
+          <div className="source-note"><span>文档来源</span><code>documents/</code></div>
         </aside>
 
         <section className="document-stage" id="top">
