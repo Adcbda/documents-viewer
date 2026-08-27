@@ -3,8 +3,11 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, LoaderCircle, Menu, Search, Type, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import { buildDocumentTree, documentMatchesQuery, type DocumentDirectory, type LibraryDocument } from "../lib/document-tree";
+import { markdownHtmlSanitizeSchema } from "../lib/markdown-html";
 import { countMarkdownLines } from "../lib/markdown-stats";
 
 type Heading = { id: string; level: number; text: string };
@@ -63,6 +66,11 @@ function getLibraryFileUrl(file: string) {
   return `/library/${file.split("/").map(encodeURIComponent).join("/")}`;
 }
 
+function imageWidthStyle(width: string | number | undefined) {
+  if (width === undefined) return undefined;
+  return typeof width === "number" ? `${width}px` : width;
+}
+
 function documentTypographyStyle(bodyFontSize: number): DocumentTypographyStyle {
   const size = (ratio: number) => `${(bodyFontSize * ratio).toFixed(2)}pt`;
   return {
@@ -98,17 +106,28 @@ function MarkdownContent({
 
   return (
     <>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={{
-        h1: headingComponent(1), h2: headingComponent(2), h3: headingComponent(3),
-        img: ({ src, alt }) => (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={resolveLibraryUrl(documentPath, typeof src === "string" ? src : undefined)}
-            alt={alt ?? "文档图片"}
-            loading="lazy"
-          />
-        ),
-      }}>{markdown}</ReactMarkdown>
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownHtmlSanitizeSchema]]}
+        components={{
+          h1: headingComponent(1), h2: headingComponent(2), h3: headingComponent(3),
+          img: ({ src, alt, width, height, style, className, title }) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={resolveLibraryUrl(documentPath, typeof src === "string" ? src : undefined)}
+              alt={alt ?? "文档图片"}
+              width={width}
+              height={height}
+              style={width === undefined ? style : { width: imageWidthStyle(width), ...style }}
+              className={className}
+              title={title}
+              loading="lazy"
+            />
+          ),
+        }}
+      >
+        {markdown}
+      </ReactMarkdown>
       <footer className="document-footer"><span>文档结束</span><p>共 {lineCount.toLocaleString("zh-CN")} 行 · 内容来自本地 Markdown 文件</p></footer>
     </>
   );

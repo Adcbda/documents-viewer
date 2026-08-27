@@ -84,3 +84,10 @@ test("shows the Markdown source line count in the document footer", async () => 
   assert.match(page, /countMarkdownLines\(markdown\)/);
   assert.match(page, /共 \{lineCount\.toLocaleString\("zh-CN"\)\} 行/);
 });
+
+test("renders sanitized HTML embedded in Markdown", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+
+  assert.match(page, /rehypePlugins=\{\[rehypeRaw, \[rehypeSanitize, markdownHtmlSanitizeSchema\]\]\}/);
+  assert.match(page, /style=\{width === undefined \? style : \{ width: imageWidthStyle\(width\), \.\.\.style \}\}/);
+});
