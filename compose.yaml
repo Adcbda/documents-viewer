@@ -1,6 +1,6 @@
 services:
   web:
-    image: software-register:latest
+    image: documents-viewer:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -14,4 +14,4 @@ services:
       PORT: 3000
       LIBRARY_DIR: /library
     volumes:
-      - ./server:/library:ro
+      - ./documents:/library:ro
