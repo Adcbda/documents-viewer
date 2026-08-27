@@ -3,9 +3,11 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, LoaderCircle, Menu, Search, Type, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
 import { buildDocumentTree, documentMatchesQuery, type DocumentDirectory, type LibraryDocument } from "../lib/document-tree";
 import { markdownHtmlSanitizeSchema } from "../lib/markdown-html";
 import { countMarkdownLines } from "../lib/markdown-stats";
@@ -107,8 +109,8 @@ function MarkdownContent({
   return (
     <>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownHtmlSanitizeSchema]]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownHtmlSanitizeSchema], rehypeKatex]}
         components={{
           h1: headingComponent(1), h2: headingComponent(2), h3: headingComponent(3),
           img: ({ src, alt, width, height, style, className, title }) => (

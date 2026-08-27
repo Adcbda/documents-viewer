@@ -85,9 +85,14 @@ test("shows the Markdown source line count in the document footer", async () => 
   assert.match(page, /共 \{lineCount\.toLocaleString\("zh-CN"\)\} 行/);
 });
 
-test("renders sanitized HTML embedded in Markdown", async () => {
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+test("renders sanitized HTML and LaTeX embedded in Markdown", async () => {
+  const [page, layout] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+  ]);
 
-  assert.match(page, /rehypePlugins=\{\[rehypeRaw, \[rehypeSanitize, markdownHtmlSanitizeSchema\]\]\}/);
+  assert.match(page, /remarkPlugins=\{\[remarkGfm, remarkMath\]\}/);
+  assert.match(page, /rehypePlugins=\{\[rehypeRaw, \[rehypeSanitize, markdownHtmlSanitizeSchema\], rehypeKatex\]\}/);
+  assert.match(layout, /import "katex\/dist\/katex\.min\.css"/);
   assert.match(page, /style=\{width === undefined \? style : \{ width: imageWidthStyle\(width\), \.\.\.style \}\}/);
 });
