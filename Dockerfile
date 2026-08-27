@@ -4,7 +4,8 @@ FROM node:22-bookworm-slim AS dependencies
 
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
-RUN npm ci
+RUN npm config set registry https://registry.npmmirror.com \
+    && npm ci
 
 FROM dependencies AS builder
 
