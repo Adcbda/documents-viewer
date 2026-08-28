@@ -43,46 +43,46 @@
   color-scheme: light;
 }
 
-html[data-theme="dark"] {
-  --ink: #e8efec;
-  --muted: #a1aca8;
-  --line: #34433e;
-  --paper: #1d2723;
-  --canvas: #111815;
-  --topbar: rgba(22, 30, 27, 0.94);
-  --surface: #171f1c;
-  --surface-raised: #222d28;
-  --surface-hover: #25322d;
-  --surface-subtle: #202a26;
-  --green: #3bab90;
-  --green-hover: #318d78;
-  --green-ink: #72d7bd;
-  --green-pale: #203d35;
-  --amber: #dda758;
-  --subtle-ink: #919e99;
-  --soft-ink: #87938f;
-  --item-ink: #aab5b1;
-  --folder-ink: #a8b4af;
-  --heading-ink: #e4efeb;
-  --copy-ink: #cbd5d1;
-  --strong-ink: #f0f5f3;
-  --paper-line: #394843;
-  --field-line: #41534c;
-  --active-line: #365b50;
-  --blockquote-bg: #332d22;
-  --blockquote-ink: #dec79f;
-  --table-head-bg: #263b34;
-  --table-head-ink: #d6ebe4;
-  --table-line: #3b4b45;
-  --code-bg: #2a3430;
-  --code-ink: #f09a84;
-  --code-block-bg: #0d1412;
-  --code-block-ink: #dce8e3;
-  --image-line: #3d4c46;
-  --viewer-bg: #151c19;
-  --toc-bg: rgba(23, 31, 28, .82);
-  --backdrop: rgba(3, 8, 6, .68);
-  --shadow: 0 20px 60px rgba(0, 0, 0, .28);
+html[data-theme="dark-gray"] {
+  --ink: #e8e9eb;
+  --muted: #a6a8ad;
+  --line: #3b3d42;
+  --paper: #222326;
+  --canvas: #151619;
+  --topbar: rgba(29, 30, 33, 0.94);
+  --surface: #1b1c1f;
+  --surface-raised: #292a2e;
+  --surface-hover: #313238;
+  --surface-subtle: #27282c;
+  --green: #709f91;
+  --green-hover: #587f74;
+  --green-ink: #a5cfc2;
+  --green-pale: #293a35;
+  --amber: #d2a15d;
+  --subtle-ink: #92949a;
+  --soft-ink: #898b91;
+  --item-ink: #b0b2b6;
+  --folder-ink: #afb1b5;
+  --heading-ink: #f0f1f2;
+  --copy-ink: #d0d1d4;
+  --strong-ink: #f5f5f6;
+  --paper-line: #414349;
+  --field-line: #4a4d54;
+  --active-line: #4b625b;
+  --blockquote-bg: #302e2a;
+  --blockquote-ink: #dbc9ac;
+  --table-head-bg: #303236;
+  --table-head-ink: #e1e2e4;
+  --table-line: #45474d;
+  --code-bg: #303136;
+  --code-ink: #eea08b;
+  --code-block-bg: #111214;
+  --code-block-ink: #e0e1e3;
+  --image-line: #44464c;
+  --viewer-bg: #17181b;
+  --toc-bg: rgba(27, 28, 31, .84);
+  --backdrop: rgba(4, 4, 5, .7);
+  --shadow: 0 20px 60px rgba(0, 0, 0, .32);
   color-scheme: dark;
 }
 
@@ -99,13 +99,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .brand strong { font-family: "Microsoft YaHei UI", sans-serif; font-size: 15px; letter-spacing: .04em; }
 .brand small { color: var(--subtle-ink); font-size: 8px; letter-spacing: .18em; }
 .topbar-spacer { flex: 1; }
-.theme-toggle { width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); color: var(--muted); cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .15s ease; }
+.theme-toggle { width: 40px; min-height: 40px; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); color: var(--muted); cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .15s ease; }
 .theme-toggle:hover { border-color: var(--field-line); background: var(--surface-hover); color: var(--green-ink); transform: translateY(-1px); }
 .theme-toggle:focus-visible { outline: 3px solid rgba(22, 117, 101, .25); outline-offset: 2px; }
 .theme-icon { display: none; }
 .theme-icon-light { display: block; }
-html[data-theme="dark"] .theme-icon-light { display: none; }
-html[data-theme="dark"] .theme-icon-dark { display: block; }
+html[data-theme="dark-gray"] .theme-icon-light { display: none; }
+html[data-theme="dark-gray"] .theme-icon-dark-gray { display: block; }
 .local-badge { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
 .local-badge i { width: 7px; height: 7px; background: #2a9d74; border-radius: 999px; box-shadow: 0 0 0 4px var(--green-pale); }
 .export-button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 0; border-radius: 9px; background: var(--green); color: white; font-weight: 650; font-size: 13px; text-decoration: none; box-shadow: 0 5px 14px rgba(22, 117, 101, .2); cursor: pointer; }
@@ -253,7 +253,7 @@ html[data-theme="dark"] .theme-icon-dark { display: block; }
 }
 @media print {
   @page { size: A4; margin: 17mm 16mm 18mm; }
-  :root, html[data-theme="dark"] {
+  :root, html[data-theme="dark-gray"] {
     --ink: #1d2d2b;
     --muted: #6c7774;
     --line: #dfe4e1;

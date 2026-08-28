@@ -56,18 +56,20 @@ test("includes embedded PDF viewing and fallback actions", async () => {
   assert.match(css, /\.pdf-fallback\s*\{/);
 });
 
-test("supports a persistent light and dark reading theme", async () => {
+test("supports persistent light and gray night reading themes", async () => {
   const [page, layout, css] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /aria-label="切换白天或夜间模式"/);
+  assert.match(page, /aria-label="切换白天或深灰夜间模式"/);
+  assert.match(page, /onClick=\{toggleTheme\}/);
+  assert.doesNotMatch(page, /<select[^>]+颜色主题/);
   assert.match(page, /localStorage\.setItem\(THEME_STORAGE_KEY, nextTheme\)/);
   assert.match(layout, /prefers-color-scheme: dark/);
   assert.match(layout, /document\.documentElement\.dataset\.theme = theme/);
-  assert.match(css, /html\[data-theme="dark"\]\s*\{/);
+  assert.match(css, /html\[data-theme="dark-gray"\]\s*\{/);
   assert.doesNotMatch(page, /theme-label/);
   assert.match(css, /\.theme-icon-light\s*\{\s*display:\s*block/);
   assert.match(css, /@media print/);

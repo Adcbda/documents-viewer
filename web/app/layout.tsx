@@ -6,11 +6,13 @@ const themeInitializationScript = `
   (() => {
     try {
       const savedTheme = localStorage.getItem("document-viewer-theme");
-      const theme = savedTheme === "light" || savedTheme === "dark"
-        ? savedTheme
-        : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+      const theme = savedTheme === "light"
+        ? "light"
+        : savedTheme === "dark" || savedTheme === "dark-gray"
+          ? "dark-gray"
+        : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark-gray" : "light");
       document.documentElement.dataset.theme = theme;
-      document.documentElement.style.colorScheme = theme;
+      document.documentElement.style.colorScheme = theme === "light" ? "light" : "dark";
     } catch (_) {}
   })();
 `;

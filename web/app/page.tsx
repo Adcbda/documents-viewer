@@ -204,7 +204,7 @@ export default function Home() {
       } catch {
         // Storage may be disabled; system theme changes should still be applied.
       }
-      const nextTheme = event.matches ? "dark" : "light";
+      const nextTheme = event.matches ? "dark-gray" : "light";
       window.document.documentElement.dataset.theme = nextTheme;
       window.document.documentElement.style.colorScheme = nextTheme;
     };
@@ -256,9 +256,9 @@ export default function Home() {
   };
   const toggleTheme = () => {
     const root = window.document.documentElement;
-    const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
+    const nextTheme = root.dataset.theme === "dark-gray" ? "light" : "dark-gray";
     root.dataset.theme = nextTheme;
-    root.style.colorScheme = nextTheme;
+    root.style.colorScheme = nextTheme === "light" ? "light" : "dark";
     try {
       window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
     } catch {
@@ -324,9 +324,9 @@ export default function Home() {
           <span><strong>文档阅览室</strong><small>MARKDOWN DESK</small></span>
         </a>
         <div className="topbar-spacer" />
-        <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label="切换白天或夜间模式" title="切换白天/夜间模式">
+        <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label="切换白天或深灰夜间模式" title="切换白天/深灰夜间模式">
           <Sun className="theme-icon theme-icon-light" size={17} aria-hidden="true" />
-          <Moon className="theme-icon theme-icon-dark" size={17} aria-hidden="true" />
+          <Moon className="theme-icon theme-icon-dark-gray" size={17} aria-hidden="true" />
         </button>
         <span className="local-badge"><i /> 本地内容</span>
         {activeDocument?.kind === "pdf" && sourceFileUrl ? (
