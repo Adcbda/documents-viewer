@@ -75,6 +75,24 @@ test("supports persistent light and gray night reading themes", async () => {
   assert.match(css, /@media print/);
 });
 
+test("supports collapsible navigation and fullscreen Markdown reading with a table of contents", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /aria-label=\{isCompactViewport \? \(sidebarOpen \? "关闭文档导航" : "打开文档导航"\) : \(desktopSidebarOpen \? "隐藏文档侧边栏" : "打开文档侧边栏"\)\}/);
+  assert.match(page, /localStorage\.setItem\(SIDEBAR_VISIBILITY_STORAGE_KEY, String\(nextOpen\)\)/);
+  assert.match(page, /aria-label="进入全屏阅读模式"/);
+  assert.match(page, /requestFullscreen\(\)/);
+  assert.match(page, /aria-label="退出全屏阅读模式"/);
+  assert.match(page, /id="document-toc"/);
+  assert.match(css, /\.workspace\.sidebar-hidden\s*\{/);
+  assert.match(css, /\.workspace\.reading-mode \.toc-panel\s*\{[^}]*display:\s*block/);
+  assert.match(css, /\.workspace\.reading-mode\.reading-toc-open \.toc-panel/);
+  assert.match(css, /\.workspace\.reading-mode \.document-stage\s*\{[^}]*overflow-y:\s*auto/);
+});
+
 test("offers Markdown download, DOCX export, and print-ready PDF", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),

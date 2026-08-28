@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, LoaderCircle, Menu, Moon, Search, Sun, Type, X } from "lucide-react";
+import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, ListTree, LoaderCircle, Maximize2, Minimize2, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, Type, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
@@ -40,6 +40,7 @@ const FONT_SIZE_OPTIONS = [
 
 const THEME_STORAGE_KEY = "document-viewer-theme";
 const SIDEBAR_WIDTH_STORAGE_KEY = "document-viewer-sidebar-width";
+const SIDEBAR_VISIBILITY_STORAGE_KEY = "document-viewer-sidebar-visible";
 const DEFAULT_SIDEBAR_WIDTH = 260;
 const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 480;
@@ -201,12 +202,18 @@ export default function Home() {
   const [markdown, setMarkdown] = useState("");
   const [query, setQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
+  const [isCompactViewport, setIsCompactViewport] = useState(false);
+  const [readingMode, setReadingMode] = useState(false);
+  const [readingTocOpen, setReadingTocOpen] = useState(false);
   const [error, setError] = useState("");
   const [exportState, setExportState] = useState<ExportState>({ format: null, status: "idle" });
   const [bodyFontSize, setBodyFontSize] = useState(10.5);
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const sidebarWidthRef = useRef(DEFAULT_SIDEBAR_WIDTH);
+  const appShellRef = useRef<HTMLElement | null>(null);
+  const nativeFullscreenActiveRef = useRef(false);
 
   useEffect(() => {
     const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
@@ -228,17 +235,54 @@ export default function Home() {
     let restoreFrame = 0;
     try {
       const savedWidth = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
-      if (!Number.isFinite(savedWidth) || savedWidth <= 0) return;
-      const nextWidth = clampSidebarWidth(savedWidth);
+      const savedVisibility = window.localStorage.getItem(SIDEBAR_VISIBILITY_STORAGE_KEY);
       restoreFrame = window.requestAnimationFrame(() => {
-        sidebarWidthRef.current = nextWidth;
-        setSidebarWidth(nextWidth);
+        if (Number.isFinite(savedWidth) && savedWidth > 0) {
+          const nextWidth = clampSidebarWidth(savedWidth);
+          sidebarWidthRef.current = nextWidth;
+          setSidebarWidth(nextWidth);
+        }
+        if (savedVisibility !== null) setDesktopSidebarOpen(savedVisibility === "true");
       });
     } catch {
       // The sidebar remains resizable when storage is unavailable.
     }
     return () => window.cancelAnimationFrame(restoreFrame);
   }, []);
+
+  useEffect(() => {
+    const compactViewport = window.matchMedia("(max-width: 780px)");
+    const syncViewport = () => setIsCompactViewport(compactViewport.matches);
+    syncViewport();
+    compactViewport.addEventListener("change", syncViewport);
+    return () => compactViewport.removeEventListener("change", syncViewport);
+  }, []);
+
+  useEffect(() => {
+    const syncFullscreenState = () => {
+      if (window.document.fullscreenElement === appShellRef.current) {
+        nativeFullscreenActiveRef.current = true;
+        setReadingMode(true);
+      } else if (nativeFullscreenActiveRef.current) {
+        nativeFullscreenActiveRef.current = false;
+        setReadingMode(false);
+        setReadingTocOpen(false);
+      }
+    };
+    window.document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () => window.document.removeEventListener("fullscreenchange", syncFullscreenState);
+  }, []);
+
+  useEffect(() => {
+    if (!readingMode) return;
+    const exitCssReadingMode = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== "Escape" || window.document.fullscreenElement) return;
+      setReadingMode(false);
+      setReadingTocOpen(false);
+    };
+    window.addEventListener("keydown", exitCssReadingMode);
+    return () => window.removeEventListener("keydown", exitCssReadingMode);
+  }, [readingMode]);
 
   useEffect(() => {
     if (!sidebarResizing) return;
@@ -321,6 +365,43 @@ export default function Home() {
     event.preventDefault();
     setAndSaveSidebarWidth(nextWidth);
   };
+  const toggleSidebar = () => {
+    if (isCompactViewport) {
+      setSidebarOpen((open) => !open);
+      return;
+    }
+    setDesktopSidebarOpen((open) => {
+      const nextOpen = !open;
+      try {
+        window.localStorage.setItem(SIDEBAR_VISIBILITY_STORAGE_KEY, String(nextOpen));
+      } catch {
+        // The selected visibility still applies for the current session.
+      }
+      return nextOpen;
+    });
+  };
+  const enterReadingMode = async () => {
+    setSidebarOpen(false);
+    setReadingTocOpen(false);
+    setReadingMode(true);
+    try {
+      await appShellRef.current?.requestFullscreen();
+      nativeFullscreenActiveRef.current = window.document.fullscreenElement === appShellRef.current;
+    } catch {
+      // CSS reading mode remains available when native fullscreen is unavailable.
+    }
+  };
+  const exitReadingMode = async () => {
+    setReadingTocOpen(false);
+    try {
+      if (window.document.fullscreenElement) await window.document.exitFullscreen();
+    } catch {
+      // Leaving the CSS reading layout still gives the user a reliable exit.
+    } finally {
+      nativeFullscreenActiveRef.current = false;
+      setReadingMode(false);
+    }
+  };
   const selectDocument = (document: LibraryDocument) => {
     setActiveDocument(document);
     setMarkdown("");
@@ -394,14 +475,28 @@ export default function Home() {
     }
   };
   return (
-    <main className="app-shell">
+    <main ref={appShellRef} className={`app-shell ${readingMode ? "reading-mode-active" : ""}`}>
       <header className="topbar">
-        <button className="icon-button mobile-menu" onClick={() => setSidebarOpen(true)} aria-label="打开文档导航"><Menu size={20} /></button>
+        <button
+          className="icon-button sidebar-toggle"
+          type="button"
+          onClick={toggleSidebar}
+          aria-controls="document-library-sidebar"
+          aria-expanded={isCompactViewport ? sidebarOpen : desktopSidebarOpen}
+          aria-label={isCompactViewport ? (sidebarOpen ? "关闭文档导航" : "打开文档导航") : (desktopSidebarOpen ? "隐藏文档侧边栏" : "打开文档侧边栏")}
+          title={isCompactViewport ? "打开文档导航" : (desktopSidebarOpen ? "隐藏文档侧边栏" : "打开文档侧边栏")}
+        >
+          {isCompactViewport || !desktopSidebarOpen ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}
+        </button>
         <a className="brand" href="#top" aria-label="返回文档顶部">
           <span className="brand-mark"><BookOpenText size={20} /></span>
           <span><strong>文档阅览室</strong><small>MARKDOWN DESK</small></span>
         </a>
         <div className="topbar-spacer" />
+        <button className="mode-button" type="button" onClick={() => void enterReadingMode()} aria-label="进入全屏阅读模式" title="进入全屏阅读模式">
+          <Maximize2 size={17} aria-hidden="true" />
+          <span>全屏阅读</span>
+        </button>
         <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label="切换白天或深灰夜间模式" title="切换白天/深灰夜间模式">
           <Sun className="theme-icon theme-icon-light" size={17} aria-hidden="true" />
           <Moon className="theme-icon theme-icon-dark-gray" size={17} aria-hidden="true" />
@@ -434,9 +529,26 @@ export default function Home() {
         )}
       </header>
 
-      <div className={`workspace ${sidebarResizing ? "sidebar-resizing" : ""}`} style={workspaceStyle}>
+      {readingMode && (
+        <div className="reading-mode-toolbar" aria-label="全屏阅读控制">
+          <span className="reading-mode-document-title">{activeDocument?.title ?? "文档阅读"}</span>
+          {activeDocument?.kind !== "pdf" && (
+            <button className="reading-mode-action reading-mode-toc-button" type="button" onClick={() => setReadingTocOpen((open) => !open)} aria-expanded={readingTocOpen} aria-controls="document-toc">
+              <ListTree size={17} />
+              <span>目录</span>
+            </button>
+          )}
+          <button className="reading-mode-action" type="button" onClick={() => void exitReadingMode()} aria-label="退出全屏阅读模式" title="退出全屏阅读模式">
+            <Minimize2 size={17} />
+            <span>退出全屏</span>
+          </button>
+        </div>
+      )}
+
+      <div className={`workspace ${sidebarResizing ? "sidebar-resizing" : ""} ${desktopSidebarOpen ? "" : "sidebar-hidden"} ${readingMode ? "reading-mode" : ""} ${readingTocOpen ? "reading-toc-open" : ""}`} style={workspaceStyle}>
         {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="关闭导航" />}
-        <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+        {readingMode && readingTocOpen && <button className="reading-toc-backdrop" type="button" onClick={() => setReadingTocOpen(false)} aria-label="关闭本文目录" />}
+        <aside id="document-library-sidebar" className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
           <div className="sidebar-heading"><span>文档库</span><button className="icon-button close-sidebar" onClick={() => setSidebarOpen(false)} aria-label="关闭文档导航"><X size={18} /></button></div>
           <label className="search-box"><Search size={16} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索文档" aria-label="搜索文档" /></label>
           <nav className="document-list" aria-label="文档列表">
@@ -492,7 +604,7 @@ export default function Home() {
           )}
         </section>
 
-        <aside className="toc-panel">
+        <aside className="toc-panel" id="document-toc">
           <p className="toc-title">本文目录</p>
           <nav aria-label="本文目录">
             {activeDocument?.kind === "pdf" ? (
@@ -501,7 +613,7 @@ export default function Home() {
                 {sourceFileUrl && <a href={sourceFileUrl} download>下载原始 DOCX</a>}
               </>
             ) : headings.filter((heading) => heading.level === 2 || heading.level === 3).map((heading) => (
-              <a key={heading.id} href={`#${heading.id}`} className={`toc-level-${heading.level}`}>{heading.text}</a>
+              <a key={heading.id} href={`#${heading.id}`} className={`toc-level-${heading.level}`} onClick={() => setReadingTocOpen(false)}>{heading.text}</a>
             ))}
           </nav>
         </aside>
