@@ -124,8 +124,8 @@ html[data-theme="dark-gray"] .theme-icon-dark-gray { display: block; }
 .icon-button { border: 0; background: transparent; color: var(--ink); padding: 8px; display: grid; place-items: center; cursor: pointer; }
 .mobile-menu, .close-sidebar { display: none; }
 
-.workspace { min-height: 100vh; padding-top: 70px; display: grid; grid-template-columns: 260px minmax(0, 1fr) 230px; }
-.sidebar { position: fixed; z-index: 30; left: 0; top: 70px; bottom: 0; width: 260px; display: flex; flex-direction: column; padding: 16px 16px 14px; background: var(--surface); border-right: 1px solid var(--line); transition: background-color .2s ease, border-color .2s ease; }
+.workspace { min-height: 100vh; padding-top: 70px; display: grid; grid-template-columns: var(--sidebar-width, 260px) minmax(0, 1fr) 230px; }
+.sidebar { position: fixed; z-index: 30; left: 0; top: 70px; bottom: 0; width: var(--sidebar-width, 260px); display: flex; flex-direction: column; padding: 16px 16px 14px; background: var(--surface); border-right: 1px solid var(--line); transition: background-color .2s ease, border-color .2s ease; }
 .sidebar-heading { display: flex; align-items: center; justify-content: space-between; padding: 0 8px 9px; font-size: 11px; font-weight: 800; letter-spacing: .16em; color: var(--subtle-ink); }
 .search-box { height: 36px; display: flex; align-items: center; gap: 8px; padding: 0 11px; margin-bottom: 10px; background: var(--surface-raised); border: 1px solid var(--line); border-radius: 9px; color: var(--soft-ink); }
 .search-box:focus-within { border-color: #91b9ae; box-shadow: 0 0 0 3px rgba(22, 117, 101, .08); }
@@ -149,6 +149,10 @@ html[data-theme="dark-gray"] .theme-icon-dark-gray { display: block; }
 .document-list-empty { margin: 16px 8px; color: var(--soft-ink); font-size: 12px; text-align: center; }
 .source-note { margin-top: auto; display: flex; align-items: center; justify-content: space-between; padding: 9px 10px 0; border-top: 1px solid var(--line); color: var(--soft-ink); font-size: 10px; }
 .source-note code { padding: 3px 6px; background: var(--surface-hover); border-radius: 5px; color: var(--muted); }
+.sidebar-resizer { position: absolute; z-index: 2; top: 0; right: -6px; width: 12px; height: 100%; padding: 0; border: 0; outline: 0; background: transparent; cursor: col-resize; touch-action: none; }
+.sidebar-resizer::after { content: ""; position: absolute; inset: 0 auto 0 5px; width: 2px; background: transparent; transition: background-color .15s ease, box-shadow .15s ease; }
+.sidebar-resizer:hover::after, .sidebar-resizer:focus-visible::after, .workspace.sidebar-resizing .sidebar-resizer::after { background: var(--green); box-shadow: 0 0 0 2px var(--green-pale); }
+html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; user-select: none !important; }
 
 .document-stage { grid-column: 2; min-width: 0; padding: 44px 5.5vw 90px; }
 .pdf-paper { width: min(100%, 980px); height: calc(100vh - 154px); min-height: 640px; margin: 0 auto; overflow: hidden; display: flex; flex-direction: column; background: var(--paper); border: 1px solid var(--paper-line); border-radius: 12px; box-shadow: var(--shadow); }
@@ -211,8 +215,7 @@ html[data-theme="dark-gray"] .theme-icon-dark-gray { display: block; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
 @media (max-width: 1180px) {
-  .workspace { grid-template-columns: 240px minmax(0, 1fr); }
-  .sidebar { width: 240px; }
+  .workspace { grid-template-columns: var(--sidebar-width, 260px) minmax(0, 1fr); }
   .toc-panel { display: none; }
   .document-stage { padding-left: 4vw; padding-right: 4vw; }
   .font-size-control span { display: none; }
@@ -224,6 +227,7 @@ html[data-theme="dark-gray"] .theme-icon-dark-gray { display: block; }
   .mobile-menu, .close-sidebar { display: grid; }
   .workspace { display: block; padding-top: 62px; }
   .sidebar { top: 0; width: min(86vw, 320px); z-index: 60; transform: translateX(-102%); transition: transform .22s ease, background-color .2s ease; box-shadow: 20px 0 60px rgba(15, 31, 27, .2); }
+  .sidebar-resizer { display: none; }
   .sidebar-open { transform: translateX(0); }
   .sidebar-backdrop { position: fixed; z-index: 50; inset: 0; display: block; border: 0; background: var(--backdrop); }
   .document-stage { padding: 20px 12px 50px; }

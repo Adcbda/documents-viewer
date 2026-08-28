@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, LoaderCircle, Menu, Moon, Search, Sun, Type, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
@@ -17,6 +17,7 @@ type ExportFormat = "markdown" | "docx" | "pdf";
 type ExportState = { format: ExportFormat | null; status: "idle" | "working" | "done" | "error" };
 type DocumentTypographyStyle = CSSProperties & Record<`--document-${string}`, string>;
 type DocumentTreeStyle = CSSProperties & { "--tree-indent": string };
+type WorkspaceStyle = CSSProperties & { "--sidebar-width": string };
 
 const FONT_SIZE_OPTIONS = [
   { label: "初号", value: 42 },
@@ -38,6 +39,14 @@ const FONT_SIZE_OPTIONS = [
 ];
 
 const THEME_STORAGE_KEY = "document-viewer-theme";
+const SIDEBAR_WIDTH_STORAGE_KEY = "document-viewer-sidebar-width";
+const DEFAULT_SIDEBAR_WIDTH = 260;
+const MIN_SIDEBAR_WIDTH = 220;
+const MAX_SIDEBAR_WIDTH = 480;
+
+function clampSidebarWidth(width: number) {
+  return Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, width));
+}
 
 function slugify(value: string, index: number) {
   const slug = value.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
@@ -195,6 +204,9 @@ export default function Home() {
   const [error, setError] = useState("");
   const [exportState, setExportState] = useState<ExportState>({ format: null, status: "idle" });
   const [bodyFontSize, setBodyFontSize] = useState(10.5);
+  const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
+  const [sidebarResizing, setSidebarResizing] = useState(false);
+  const sidebarWidthRef = useRef(DEFAULT_SIDEBAR_WIDTH);
 
   useEffect(() => {
     const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
@@ -211,6 +223,51 @@ export default function Home() {
     colorScheme.addEventListener("change", followSystemTheme);
     return () => colorScheme.removeEventListener("change", followSystemTheme);
   }, []);
+
+  useEffect(() => {
+    let restoreFrame = 0;
+    try {
+      const savedWidth = Number(window.localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY));
+      if (!Number.isFinite(savedWidth) || savedWidth <= 0) return;
+      const nextWidth = clampSidebarWidth(savedWidth);
+      restoreFrame = window.requestAnimationFrame(() => {
+        sidebarWidthRef.current = nextWidth;
+        setSidebarWidth(nextWidth);
+      });
+    } catch {
+      // The sidebar remains resizable when storage is unavailable.
+    }
+    return () => window.cancelAnimationFrame(restoreFrame);
+  }, []);
+
+  useEffect(() => {
+    if (!sidebarResizing) return;
+    const root = window.document.documentElement;
+    const resizeSidebar = (event: PointerEvent) => {
+      const nextWidth = clampSidebarWidth(event.clientX);
+      sidebarWidthRef.current = nextWidth;
+      setSidebarWidth(nextWidth);
+    };
+    const finishSidebarResize = () => {
+      setSidebarResizing(false);
+      try {
+        window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(sidebarWidthRef.current));
+      } catch {
+        // The resized width still applies for the current session.
+      }
+    };
+
+    root.classList.add("sidebar-resizing");
+    window.addEventListener("pointermove", resizeSidebar);
+    window.addEventListener("pointerup", finishSidebarResize, { once: true });
+    window.addEventListener("pointercancel", finishSidebarResize, { once: true });
+    return () => {
+      root.classList.remove("sidebar-resizing");
+      window.removeEventListener("pointermove", resizeSidebar);
+      window.removeEventListener("pointerup", finishSidebarResize);
+      window.removeEventListener("pointercancel", finishSidebarResize);
+    };
+  }, [sidebarResizing]);
 
   useEffect(() => {
     fetch("/library/index.json")
@@ -243,6 +300,27 @@ export default function Home() {
   const documentTree = useMemo(() => buildDocumentTree(filteredDocuments), [filteredDocuments]);
   const activeFileUrl = activeDocument ? getLibraryFileUrl(activeDocument.file) : "";
   const sourceFileUrl = activeDocument?.sourceFile ? getLibraryFileUrl(activeDocument.sourceFile) : "";
+  const workspaceStyle: WorkspaceStyle = { "--sidebar-width": `${sidebarWidth}px` };
+  const setAndSaveSidebarWidth = (width: number) => {
+    const nextWidth = clampSidebarWidth(width);
+    sidebarWidthRef.current = nextWidth;
+    setSidebarWidth(nextWidth);
+    try {
+      window.localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(nextWidth));
+    } catch {
+      // The resized width still applies for the current session.
+    }
+  };
+  const resizeSidebarWithKeyboard = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
+    let nextWidth = sidebarWidth;
+    if (event.key === "ArrowLeft") nextWidth -= 10;
+    else if (event.key === "ArrowRight") nextWidth += 10;
+    else if (event.key === "Home") nextWidth = MIN_SIDEBAR_WIDTH;
+    else if (event.key === "End") nextWidth = MAX_SIDEBAR_WIDTH;
+    else return;
+    event.preventDefault();
+    setAndSaveSidebarWidth(nextWidth);
+  };
   const selectDocument = (document: LibraryDocument) => {
     setActiveDocument(document);
     setMarkdown("");
@@ -356,7 +434,7 @@ export default function Home() {
         )}
       </header>
 
-      <div className="workspace">
+      <div className={`workspace ${sidebarResizing ? "sidebar-resizing" : ""}`} style={workspaceStyle}>
         {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="关闭导航" />}
         <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
           <div className="sidebar-heading"><span>文档库</span><button className="icon-button close-sidebar" onClick={() => setSidebarOpen(false)} aria-label="关闭文档导航"><X size={18} /></button></div>
@@ -366,6 +444,20 @@ export default function Home() {
             {!filteredDocuments.length && <p className="document-list-empty">没有匹配的文档</p>}
           </nav>
           <div className="source-note"><span>文档来源</span><code>documents/</code></div>
+          <button
+            type="button"
+            className="sidebar-resizer"
+            aria-label={`调整文档库侧边栏宽度，当前 ${sidebarWidth} 像素`}
+            aria-keyshortcuts="ArrowLeft ArrowRight Home End"
+            title="拖动调整宽度，双击恢复默认宽度"
+            onPointerDown={(event) => {
+              if (event.button !== 0) return;
+              event.preventDefault();
+              setSidebarResizing(true);
+            }}
+            onDoubleClick={() => setAndSaveSidebarWidth(DEFAULT_SIDEBAR_WIDTH)}
+            onKeyDown={resizeSidebarWithKeyboard}
+          />
         </aside>
 
         <section className="document-stage" id="top">
