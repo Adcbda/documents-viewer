@@ -68,6 +68,8 @@ test("supports a persistent light and dark reading theme", async () => {
   assert.match(layout, /prefers-color-scheme: dark/);
   assert.match(layout, /document\.documentElement\.dataset\.theme = theme/);
   assert.match(css, /html\[data-theme="dark"\]\s*\{/);
+  assert.doesNotMatch(page, /theme-label/);
+  assert.match(css, /\.theme-icon-light\s*\{\s*display:\s*block/);
   assert.match(css, /@media print/);
 });
 

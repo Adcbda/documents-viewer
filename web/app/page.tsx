@@ -327,7 +327,6 @@ export default function Home() {
         <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label="切换白天或夜间模式" title="切换白天/夜间模式">
           <Sun className="theme-icon theme-icon-light" size={17} aria-hidden="true" />
           <Moon className="theme-icon theme-icon-dark" size={17} aria-hidden="true" />
-          <span className="theme-label"><span className="theme-label-light">白天</span><span className="theme-label-dark">夜间</span></span>
         </button>
         <span className="local-badge"><i /> 本地内容</span>
         {activeDocument?.kind === "pdf" && sourceFileUrl ? (

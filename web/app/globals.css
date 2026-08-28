@@ -99,13 +99,13 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .brand strong { font-family: "Microsoft YaHei UI", sans-serif; font-size: 15px; letter-spacing: .04em; }
 .brand small { color: var(--subtle-ink); font-size: 8px; letter-spacing: .18em; }
 .topbar-spacer { flex: 1; }
-.theme-toggle { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 0 11px; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); color: var(--muted); font-size: 12px; font-weight: 650; cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .15s ease; }
+.theme-toggle { width: 40px; min-height: 40px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--line); border-radius: 9px; background: var(--surface-raised); color: var(--muted); cursor: pointer; transition: background-color .15s ease, border-color .15s ease, color .15s ease, transform .15s ease; }
 .theme-toggle:hover { border-color: var(--field-line); background: var(--surface-hover); color: var(--green-ink); transform: translateY(-1px); }
 .theme-toggle:focus-visible { outline: 3px solid rgba(22, 117, 101, .25); outline-offset: 2px; }
-.theme-icon, .theme-label > span { display: none; }
-.theme-icon-light, .theme-label-light { display: block; }
-html[data-theme="dark"] .theme-icon-light, html[data-theme="dark"] .theme-label-light { display: none; }
-html[data-theme="dark"] .theme-icon-dark, html[data-theme="dark"] .theme-label-dark { display: block; }
+.theme-icon { display: none; }
+.theme-icon-light { display: block; }
+html[data-theme="dark"] .theme-icon-light { display: none; }
+html[data-theme="dark"] .theme-icon-dark { display: block; }
 .local-badge { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
 .local-badge i { width: 7px; height: 7px; background: #2a9d74; border-radius: 999px; box-shadow: 0 0 0 4px var(--green-pale); }
 .export-button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 0; border-radius: 9px; background: var(--green); color: white; font-weight: 650; font-size: 13px; text-decoration: none; box-shadow: 0 5px 14px rgba(22, 117, 101, .2); cursor: pointer; }
@@ -237,7 +237,6 @@ html[data-theme="dark"] .theme-icon-dark, html[data-theme="dark"] .theme-label-d
   .font-size-control svg { display: none; }
   .font-size-control select { min-width: 98px; font-size: 11px; }
   .theme-toggle { width: 40px; padding: 0; }
-  .theme-label { display: none; }
 }
 @media (max-width: 520px) {
   .topbar { gap: 5px; }
