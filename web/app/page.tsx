@@ -515,7 +515,6 @@ export default function Home() {
           <Sun className="theme-icon theme-icon-light" size={17} aria-hidden="true" />
           <Moon className="theme-icon theme-icon-dark-gray" size={17} aria-hidden="true" />
         </button>
-        <span className="local-badge"><i /> 本地内容</span>
         {activeDocument?.kind === "pdf" && sourceFileUrl ? (
           <a className="export-button" href={sourceFileUrl} download><Download size={17} />下载原始 DOCX</a>
         ) : (

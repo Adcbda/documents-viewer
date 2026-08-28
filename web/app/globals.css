@@ -109,8 +109,6 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .theme-icon-light { display: block; }
 html[data-theme="dark-gray"] .theme-icon-light { display: none; }
 html[data-theme="dark-gray"] .theme-icon-dark-gray { display: block; }
-.local-badge { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: 12px; }
-.local-badge i { width: 7px; height: 7px; background: #2a9d74; border-radius: 999px; box-shadow: 0 0 0 4px var(--green-pale); }
 .export-button { min-height: 40px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 15px; border: 0; border-radius: 9px; background: var(--green); color: white; font-weight: 650; font-size: 13px; text-decoration: none; box-shadow: 0 5px 14px rgba(22, 117, 101, .2); cursor: pointer; }
 .export-actions { display: flex; align-items: center; gap: 8px; }
 .font-size-control { min-height: 40px; display: inline-flex; align-items: center; gap: 7px; padding: 0 10px; border: 1px solid var(--field-line); border-radius: 9px; background: var(--surface-raised); color: var(--muted); font-size: 12px; }
@@ -260,7 +258,7 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
 }
 @media (max-width: 780px) {
   .topbar { height: 62px; padding: 0 12px; gap: 7px; }
-  .brand small, .local-badge { display: none; }
+  .brand small { display: none; }
   .brand-mark { width: 33px; height: 33px; }
   .close-sidebar { display: grid; }
   .workspace { display: block; padding-top: 62px; }
