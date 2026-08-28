@@ -122,6 +122,20 @@ test("shows the Markdown source line count in the document footer", async () => 
   assert.match(page, /共 \{lineCount\.toLocaleString\("zh-CN"\)\} 行/);
 });
 
+test("keeps the rendered content when the active document is selected again", async () => {
+  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const selectDocument = page.slice(
+    page.indexOf("const selectDocument ="),
+    page.indexOf("const finishExport ="),
+  );
+
+  const repeatedSelectionGuard = selectDocument.indexOf("if (document.id === activeDocument?.id) return;");
+  const contentReset = selectDocument.indexOf('setMarkdown("");');
+
+  assert.ok(repeatedSelectionGuard >= 0);
+  assert.ok(contentReset > repeatedSelectionGuard);
+});
+
 test("renders sanitized HTML and LaTeX embedded in Markdown", async () => {
   const [page, layout] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),

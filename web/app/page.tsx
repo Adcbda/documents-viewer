@@ -404,11 +404,12 @@ export default function Home() {
     }
   };
   const selectDocument = (document: LibraryDocument) => {
+    setSidebarOpen(false);
+    if (document.id === activeDocument?.id) return;
     setActiveDocument(document);
     setMarkdown("");
     setError("");
     setExportState({ format: null, status: "idle" });
-    setSidebarOpen(false);
   };
   const finishExport = (format: ExportFormat, status: "done" | "error") => {
     setExportState({ format, status });
