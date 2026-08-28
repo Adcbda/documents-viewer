@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, ListTree, LoaderCircle, Maximize2, Minimize2, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun, Type, X } from "lucide-react";
+import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, ListTree, LoaderCircle, Maximize2, Minimize2, Moon, PanelLeftClose, PanelLeftOpen, Search, StretchHorizontal, Sun, Type, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
@@ -205,6 +205,7 @@ export default function Home() {
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
   const [isCompactViewport, setIsCompactViewport] = useState(false);
   const [readingMode, setReadingMode] = useState(false);
+  const [wideMode, setWideMode] = useState(false);
   const [readingTocOpen, setReadingTocOpen] = useState(false);
   const [error, setError] = useState("");
   const [exportState, setExportState] = useState<ExportState>({ format: null, status: "idle" });
@@ -493,6 +494,19 @@ export default function Home() {
           <span><strong>文档阅览室</strong><small>MARKDOWN DESK</small></span>
         </a>
         <div className="topbar-spacer" />
+        {activeDocument?.kind === "markdown" && (
+          <button
+            className={`mode-button ${wideMode ? "active" : ""}`}
+            type="button"
+            onClick={() => setWideMode((active) => !active)}
+            aria-label={wideMode ? "退出宽屏模式" : "进入宽屏模式"}
+            aria-pressed={wideMode}
+            title={wideMode ? "退出宽屏模式" : "Markdown 铺满正文区域"}
+          >
+            <StretchHorizontal size={17} aria-hidden="true" />
+            <span>{wideMode ? "标准宽度" : "宽屏"}</span>
+          </button>
+        )}
         <button className="mode-button" type="button" onClick={() => void enterReadingMode()} aria-label="进入全屏阅读模式" title="进入全屏阅读模式">
           <Maximize2 size={17} aria-hidden="true" />
           <span>全屏阅读</span>
@@ -532,11 +546,24 @@ export default function Home() {
       {readingMode && (
         <div className="reading-mode-toolbar" aria-label="全屏阅读控制">
           <span className="reading-mode-document-title">{activeDocument?.title ?? "文档阅读"}</span>
-          {activeDocument?.kind !== "pdf" && (
-            <button className="reading-mode-action reading-mode-toc-button" type="button" onClick={() => setReadingTocOpen((open) => !open)} aria-expanded={readingTocOpen} aria-controls="document-toc">
-              <ListTree size={17} />
-              <span>目录</span>
-            </button>
+          {activeDocument?.kind === "markdown" && (
+            <>
+              <button
+                className={`reading-mode-action ${wideMode ? "active" : ""}`}
+                type="button"
+                onClick={() => setWideMode((active) => !active)}
+                aria-label={wideMode ? "退出宽屏模式" : "进入宽屏模式"}
+                aria-pressed={wideMode}
+                title={wideMode ? "退出宽屏模式" : "Markdown 铺满正文区域"}
+              >
+                <StretchHorizontal size={17} aria-hidden="true" />
+                <span>{wideMode ? "标准宽度" : "宽屏"}</span>
+              </button>
+              <button className="reading-mode-action reading-mode-toc-button" type="button" onClick={() => setReadingTocOpen((open) => !open)} aria-expanded={readingTocOpen} aria-controls="document-toc">
+                <ListTree size={17} />
+                <span>目录</span>
+              </button>
+            </>
           )}
           <button className="reading-mode-action" type="button" onClick={() => void exitReadingMode()} aria-label="退出全屏阅读模式" title="退出全屏阅读模式">
             <Minimize2 size={17} />
@@ -545,7 +572,7 @@ export default function Home() {
         </div>
       )}
 
-      <div className={`workspace ${sidebarResizing ? "sidebar-resizing" : ""} ${desktopSidebarOpen ? "" : "sidebar-hidden"} ${readingMode ? "reading-mode" : ""} ${readingTocOpen ? "reading-toc-open" : ""}`} style={workspaceStyle}>
+      <div className={`workspace ${sidebarResizing ? "sidebar-resizing" : ""} ${desktopSidebarOpen ? "" : "sidebar-hidden"} ${readingMode ? "reading-mode" : ""} ${wideMode && activeDocument?.kind === "markdown" ? "wide-mode" : ""} ${readingTocOpen ? "reading-toc-open" : ""}`} style={workspaceStyle}>
         {sidebarOpen && <button className="sidebar-backdrop" onClick={() => setSidebarOpen(false)} aria-label="关闭导航" />}
         {readingMode && readingTocOpen && <button className="reading-toc-backdrop" type="button" onClick={() => setReadingTocOpen(false)} aria-label="关闭本文目录" />}
         <aside id="document-library-sidebar" className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
