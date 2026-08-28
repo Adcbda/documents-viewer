@@ -56,6 +56,21 @@ test("includes embedded PDF viewing and fallback actions", async () => {
   assert.match(css, /\.pdf-fallback\s*\{/);
 });
 
+test("supports a persistent light and dark reading theme", async () => {
+  const [page, layout, css] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /aria-label="切换白天或夜间模式"/);
+  assert.match(page, /localStorage\.setItem\(THEME_STORAGE_KEY, nextTheme\)/);
+  assert.match(layout, /prefers-color-scheme: dark/);
+  assert.match(layout, /document\.documentElement\.dataset\.theme = theme/);
+  assert.match(css, /html\[data-theme="dark"\]\s*\{/);
+  assert.match(css, /@media print/);
+});
+
 test("offers Markdown download, DOCX export, and print-ready PDF", async () => {
   const [page, css] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),

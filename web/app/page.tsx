@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, LoaderCircle, Menu, Search, Type, X } from "lucide-react";
+import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, LoaderCircle, Menu, Moon, Search, Sun, Type, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
@@ -36,6 +36,8 @@ const FONT_SIZE_OPTIONS = [
   { label: "七号", value: 5.5 },
   { label: "八号", value: 5 },
 ];
+
+const THEME_STORAGE_KEY = "document-viewer-theme";
 
 function slugify(value: string, index: number) {
   const slug = value.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
@@ -195,6 +197,22 @@ export default function Home() {
   const [bodyFontSize, setBodyFontSize] = useState(10.5);
 
   useEffect(() => {
+    const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
+    const followSystemTheme = (event: MediaQueryListEvent) => {
+      try {
+        if (window.localStorage.getItem(THEME_STORAGE_KEY)) return;
+      } catch {
+        // Storage may be disabled; system theme changes should still be applied.
+      }
+      const nextTheme = event.matches ? "dark" : "light";
+      window.document.documentElement.dataset.theme = nextTheme;
+      window.document.documentElement.style.colorScheme = nextTheme;
+    };
+    colorScheme.addEventListener("change", followSystemTheme);
+    return () => colorScheme.removeEventListener("change", followSystemTheme);
+  }, []);
+
+  useEffect(() => {
     fetch("/library/index.json")
       .then((response) => {
         if (!response.ok) throw new Error("无法读取文档列表");
@@ -235,6 +253,17 @@ export default function Home() {
   const finishExport = (format: ExportFormat, status: "done" | "error") => {
     setExportState({ format, status });
     window.setTimeout(() => setExportState({ format: null, status: "idle" }), status === "done" ? 2600 : 3200);
+  };
+  const toggleTheme = () => {
+    const root = window.document.documentElement;
+    const nextTheme = root.dataset.theme === "dark" ? "light" : "dark";
+    root.dataset.theme = nextTheme;
+    root.style.colorScheme = nextTheme;
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+    } catch {
+      // The visual theme still changes when storage is unavailable.
+    }
   };
   const exportMarkdown = async () => {
     if (!activeDocument || !markdown || exportState.status === "working") return;
@@ -295,6 +324,11 @@ export default function Home() {
           <span><strong>文档阅览室</strong><small>MARKDOWN DESK</small></span>
         </a>
         <div className="topbar-spacer" />
+        <button className="theme-toggle" type="button" onClick={toggleTheme} aria-label="切换白天或夜间模式" title="切换白天/夜间模式">
+          <Sun className="theme-icon theme-icon-light" size={17} aria-hidden="true" />
+          <Moon className="theme-icon theme-icon-dark" size={17} aria-hidden="true" />
+          <span className="theme-label"><span className="theme-label-light">白天</span><span className="theme-label-dark">夜间</span></span>
+        </button>
         <span className="local-badge"><i /> 本地内容</span>
         {activeDocument?.kind === "pdf" && sourceFileUrl ? (
           <a className="export-button" href={sourceFileUrl} download><Download size={17} />下载原始 DOCX</a>
