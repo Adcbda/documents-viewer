@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent as ReactKeyboardEvent } from "react";
-import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, ListTree, LoaderCircle, Maximize2, Minimize2, Moon, PanelLeftClose, PanelLeftOpen, Search, StretchHorizontal, Sun, Type, X } from "lucide-react";
+import { BookOpenText, CheckCircle2, ChevronRight, Download, ExternalLink, FileText, Folder, ListTree, LoaderCircle, Maximize2, Minimize2, Moon, PanelLeftClose, PanelLeftOpen, Search, SlidersHorizontal, StretchHorizontal, Sun, Type, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
@@ -9,6 +9,7 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import { buildDocumentTree, documentMatchesQuery, type DocumentDirectory, type LibraryDocument } from "../lib/document-tree";
+import { getDocumentViewerUrl, resolveDocumentLink } from "../lib/document-links";
 import { markdownHtmlSanitizeSchema } from "../lib/markdown-html";
 import { countMarkdownLines } from "../lib/markdown-stats";
 
@@ -41,6 +42,7 @@ const FONT_SIZE_OPTIONS = [
 const THEME_STORAGE_KEY = "document-viewer-theme";
 const SIDEBAR_WIDTH_STORAGE_KEY = "document-viewer-sidebar-width";
 const SIDEBAR_VISIBILITY_STORAGE_KEY = "document-viewer-sidebar-visible";
+const DOCX_PAGINATION_STORAGE_KEY = "document-viewer-docx-pagination";
 const DEFAULT_SIDEBAR_WIDTH = 260;
 const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 480;
@@ -63,6 +65,19 @@ function findHeadings(markdown: string): Heading[] {
     index += 1;
     return heading;
   }).filter((heading): heading is Heading => heading !== null);
+}
+
+function scrollToDocumentAnchor(hash: string, headings: Heading[]) {
+  let anchor = hash.slice(1);
+  try { anchor = decodeURIComponent(anchor); } catch { /* Keep malformed fragments readable. */ }
+  // Existing TOC ids have an index suffix; also accept ordinary Markdown heading slugs.
+  const heading = headings.find((item) => item.id === anchor || item.id.replace(/-\d+$/, "") === anchor);
+  const target = anchor && (window.document.getElementById(anchor) ?? window.document.getElementById(`user-content-${anchor}`) ?? (heading ? window.document.getElementById(heading.id) : null));
+  if (target) target.scrollIntoView();
+  else {
+    window.document.getElementById("top")?.scrollTo(0, 0);
+    window.scrollTo(0, 0);
+  }
 }
 
 function resolveLibraryUrl(documentPath: string, source?: string) {
@@ -103,11 +118,15 @@ function MarkdownContent({
   documentPath,
   headings,
   lineCount,
+  documents,
+  selectDocument,
 }: {
   markdown: string;
   documentPath: string;
   headings: Heading[];
   lineCount: number;
+  documents: LibraryDocument[];
+  selectDocument: (document: LibraryDocument, hash?: string) => void;
 }) {
   let headingIndex = 0;
   const headingComponent = (level: 1 | 2 | 3) => {
@@ -125,6 +144,25 @@ function MarkdownContent({
         rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownHtmlSanitizeSchema], rehypeKatex]}
         components={{
           h1: headingComponent(1), h2: headingComponent(2), h3: headingComponent(3),
+          a: ({ href, children, title, className, id, target, rel, download }) => {
+            const link = resolveDocumentLink(documentPath, href, documents, typeof window === "undefined" ? undefined : window.location.origin);
+            return (
+              <a
+                href={download !== undefined && link.document ? getLibraryFileUrl(link.document.file) : link.href}
+                title={title}
+                className={className}
+                id={id}
+                target={target}
+                rel={rel}
+                download={download}
+                onClick={(event) => {
+                  if (!link.document || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || download !== undefined || (target && target !== "_self")) return;
+                  event.preventDefault();
+                  selectDocument(link.document, link.hash);
+                }}
+              >{children}</a>
+            );
+          },
           img: ({ src, alt, width, height, style, className, title }) => (
             // eslint-disable-next-line @next/next/no-img-element
             <img
@@ -200,6 +238,7 @@ export default function Home() {
   const [documents, setDocuments] = useState<LibraryDocument[]>([]);
   const [activeDocument, setActiveDocument] = useState<LibraryDocument | null>(null);
   const [markdown, setMarkdown] = useState("");
+  const [documentHash, setDocumentHash] = useState("");
   const [query, setQuery] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [desktopSidebarOpen, setDesktopSidebarOpen] = useState(true);
@@ -210,11 +249,29 @@ export default function Home() {
   const [error, setError] = useState("");
   const [exportState, setExportState] = useState<ExportState>({ format: null, status: "idle" });
   const [bodyFontSize, setBodyFontSize] = useState(10.5);
+  const [docxPageBreaks, setDocxPageBreaks] = useState(false);
+  const [customPageBreakMarker, setCustomPageBreakMarker] = useState("");
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const sidebarWidthRef = useRef(DEFAULT_SIDEBAR_WIDTH);
   const appShellRef = useRef<HTMLElement | null>(null);
   const nativeFullscreenActiveRef = useRef(false);
+
+  useEffect(() => {
+    let restoreFrame = 0;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(DOCX_PAGINATION_STORAGE_KEY) ?? "null");
+      if (saved && typeof saved === "object") {
+        restoreFrame = window.requestAnimationFrame(() => {
+          setDocxPageBreaks(saved.enabled === true);
+          if (typeof saved.marker === "string") setCustomPageBreakMarker(saved.marker.replace(/[\r\n]/g, ""));
+        });
+      }
+    } catch {
+      // Pagination can still be configured when storage is unavailable.
+    }
+    return () => window.cancelAnimationFrame(restoreFrame);
+  }, []);
 
   useEffect(() => {
     const colorScheme = window.matchMedia("(prefers-color-scheme: dark)");
@@ -315,28 +372,68 @@ export default function Home() {
   }, [sidebarResizing]);
 
   useEffect(() => {
-    fetch("/library/index.json")
+    const controller = new AbortController();
+    fetch("/library/index.json", { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error("无法读取文档列表");
         return response.json() as Promise<{ documents: LibraryDocument[] }>;
       })
-      .then(({ documents: items }) => { setDocuments(items); setActiveDocument(items[0] ?? null); })
-      .catch((reason: Error) => setError(reason.message));
+      .then(({ documents: items }) => {
+        if (controller.signal.aborted) return;
+        const requestedFile = new URLSearchParams(window.location.search).get("document");
+        const document = requestedFile ? items.find((item) => item.file === requestedFile) : items[0];
+        setDocuments(items);
+        setActiveDocument(document ?? null);
+        setDocumentHash(window.location.hash);
+        if (requestedFile && !document) setError(`链接指向的文档不存在：${requestedFile}`);
+        if (document && !requestedFile) {
+          window.history.replaceState(window.history.state, "", getDocumentViewerUrl(document.file, window.location.hash));
+        }
+      })
+      .catch((reason: Error) => { if (!controller.signal.aborted) setError(reason.message); });
+    return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!documents.length) return;
+    const restoreDocument = () => {
+      const requestedFile = new URLSearchParams(window.location.search).get("document");
+      const document = requestedFile ? documents.find((item) => item.file === requestedFile) : documents[0];
+      setDocumentHash(window.location.hash);
+      setSidebarOpen(false);
+      setError(requestedFile && !document ? `链接指向的文档不存在：${requestedFile}` : "");
+      if (document?.id === activeDocument?.id) return;
+      setActiveDocument(document ?? null);
+      setMarkdown("");
+      setExportState({ format: null, status: "idle" });
+    };
+    window.addEventListener("popstate", restoreDocument);
+    window.addEventListener("hashchange", restoreDocument);
+    return () => {
+      window.removeEventListener("popstate", restoreDocument);
+      window.removeEventListener("hashchange", restoreDocument);
+    };
+  }, [documents, activeDocument]);
 
   useEffect(() => {
     if (!activeDocument) return;
     if (activeDocument.kind === "pdf") return;
-    fetch(getLibraryFileUrl(activeDocument.file))
+    const controller = new AbortController();
+    fetch(getLibraryFileUrl(activeDocument.file), { signal: controller.signal })
       .then((response) => {
         if (!response.ok) throw new Error("无法读取 Markdown 文档");
         return response.text();
       })
-      .then(setMarkdown)
-      .catch((reason: Error) => setError(reason.message));
+      .then((content) => { if (!controller.signal.aborted) setMarkdown(content); })
+      .catch((reason: Error) => { if (!controller.signal.aborted) setError(reason.message); });
+    return () => controller.abort();
   }, [activeDocument]);
 
   const headings = useMemo(() => findHeadings(markdown), [markdown]);
+  useEffect(() => {
+    if (!activeDocument || (activeDocument.kind === "markdown" && !markdown)) return;
+    scrollToDocumentAnchor(documentHash, headings);
+  }, [activeDocument, markdown, documentHash, headings]);
   const markdownLineCount = useMemo(() => countMarkdownLines(markdown), [markdown]);
   const filteredDocuments = useMemo(
     () => documents.filter((document) => documentMatchesQuery(document, query)),
@@ -403,8 +500,14 @@ export default function Home() {
       setReadingMode(false);
     }
   };
-  const selectDocument = (document: LibraryDocument) => {
+  const selectDocument = (document: LibraryDocument, hash = "") => {
     setSidebarOpen(false);
+    const href = getDocumentViewerUrl(document.file, hash);
+    if (`${window.location.pathname}${window.location.search}${window.location.hash}` !== href) {
+      window.history.pushState(window.history.state, "", href);
+    }
+    setDocumentHash(hash);
+    if (document.id === activeDocument?.id && hash === documentHash) scrollToDocumentAnchor(hash, headings);
     if (document.id === activeDocument?.id) return;
     setActiveDocument(document);
     setMarkdown("");
@@ -443,11 +546,24 @@ export default function Home() {
     setExportState({ format: "docx", status: "working" });
     try {
       const { exportMarkdownToDocx } = await import("../lib/export-docx");
-      await exportMarkdownToDocx(markdown, activeDocument.file, activeDocument.title, { bodyFontSize });
+      await exportMarkdownToDocx(markdown, activeDocument.file, activeDocument.title, {
+        bodyFontSize,
+        pageBreaks: docxPageBreaks,
+        customPageBreakMarker,
+      });
       finishExport("docx", "done");
     } catch (reason) {
       console.error(reason);
       finishExport("docx", "error");
+    }
+  };
+  const updateDocxPagination = (enabled: boolean, marker: string) => {
+    setDocxPageBreaks(enabled);
+    setCustomPageBreakMarker(marker);
+    try {
+      window.localStorage.setItem(DOCX_PAGINATION_STORAGE_KEY, JSON.stringify({ enabled, marker }));
+    } catch {
+      // The chosen settings still apply to exports in this session.
     }
   };
   const exportPdf = async () => {
@@ -531,6 +647,38 @@ export default function Home() {
               {exportState.format === "markdown" && exportState.status === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState.format === "markdown" && exportState.status === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
               <span>{exportState.format === "markdown" && exportState.status === "working" ? "正在打包…" : exportState.format === "markdown" && exportState.status === "done" ? "已下载" : "下载 Markdown"}</span>
             </button>
+            <div className="docx-pagination-control">
+              <button
+                className="docx-pagination-toggle"
+                type="button"
+                role="switch"
+                aria-checked={docxPageBreaks}
+                aria-label="按页导出 Word"
+                title="开启后，识别分页符并在 Word 中强制换页"
+                disabled={exportState.status === "working"}
+                onClick={() => updateDocxPagination(!docxPageBreaks, customPageBreakMarker)}
+              >
+                <span className="docx-pagination-track" aria-hidden="true" />
+                <span>按页导出</span>
+              </button>
+              <details className="docx-pagination-settings">
+                <summary aria-label="Word 分页设置" title="自定义 Word 分页符"><SlidersHorizontal size={15} aria-hidden="true" /></summary>
+                <div className="docx-pagination-panel">
+                  <label htmlFor="docx-page-break-marker">自定义分页符</label>
+                  <input
+                    id="docx-page-break-marker"
+                    type="text"
+                    placeholder="例如：===分页==="
+                    value={customPageBreakMarker}
+                    disabled={exportState.status === "working"}
+                    onChange={(event) => updateDocxPagination(docxPageBreaks, event.target.value)}
+                    aria-describedby="docx-pagination-help"
+                  />
+                  <p id="docx-pagination-help">开启“按页导出”后生效。自定义标记需独占一行，留空时仅识别内置分页符。代码示例中的标记不会触发分页。</p>
+                  <p>自动识别 HTML 分页样式及 <code>{"<!-- pagebreak -->"}</code> 等分页标记。</p>
+                </div>
+              </details>
+            </div>
             <button className="export-button export-button-secondary" type="button" disabled={!markdown || exportState.status === "working"} onClick={exportDocx} aria-label="导出 DOCX">
               {exportState.format === "docx" && exportState.status === "working" ? <LoaderCircle className="spinning" size={17} /> : exportState.format === "docx" && exportState.status === "done" ? <CheckCircle2 size={17} /> : <Download size={17} />}
               <span>{exportState.format === "docx" && exportState.status === "working" ? "正在生成…" : exportState.format === "docx" && exportState.status === "done" ? "已导出" : "导出 DOCX"}</span>
@@ -608,7 +756,7 @@ export default function Home() {
                 <span><FileText size={18} /><strong>{activeDocument.title}</strong><small>PDF 在线预览</small></span>
                 <a href={activeFileUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} />新窗口打开</a>
               </header>
-              <object className="pdf-viewer" data={`${activeFileUrl}#view=FitH&toolbar=1&navpanes=0`} type="application/pdf">
+              <object className="pdf-viewer" data={`${activeFileUrl}${documentHash || "#view=FitH&toolbar=1&navpanes=0"}`} type="application/pdf">
                 <div className="pdf-fallback">
                   <FileText size={36} />
                   <h1>浏览器无法内嵌显示 PDF</h1>
@@ -626,6 +774,8 @@ export default function Home() {
                 documentPath={activeDocument?.file ?? ""}
                 headings={headings}
                 lineCount={markdownLineCount}
+                documents={documents}
+                selectDocument={selectDocument}
               />
             </article>
           )}

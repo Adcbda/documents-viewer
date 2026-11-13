@@ -116,6 +116,25 @@ html[data-theme="dark-gray"] .theme-icon-dark-gray { display: block; }
 .font-size-control span { white-space: nowrap; }
 .font-size-control select { min-width: 72px; border: 0; outline: 0; background: transparent; color: var(--ink); font-weight: 650; cursor: pointer; }
 .font-size-control:focus-within { border-color: #91b9ae; box-shadow: 0 0 0 3px rgba(22, 117, 101, .08); }
+.docx-pagination-control { display: inline-flex; align-items: center; flex: none; min-height: 40px; border: 1px solid var(--field-line); border-radius: 9px; background: var(--surface-raised); }
+.docx-pagination-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 38px; padding: 0 8px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); font-size: 12px; white-space: nowrap; cursor: pointer; }
+.docx-pagination-toggle[aria-checked="true"] { color: var(--green-ink); }
+.docx-pagination-toggle:disabled { opacity: .6; cursor: wait; }
+.docx-pagination-track { width: 26px; height: 16px; flex: none; padding: 2px; border-radius: 8px; background: var(--subtle-ink); transition: background-color .15s ease; }
+.docx-pagination-track::after { content: ""; display: block; width: 12px; height: 12px; border-radius: 50%; background: white; transition: transform .15s ease; }
+.docx-pagination-toggle[aria-checked="true"] .docx-pagination-track { background: var(--green); }
+.docx-pagination-toggle[aria-checked="true"] .docx-pagination-track::after { transform: translateX(10px); }
+.docx-pagination-settings { position: relative; }
+.docx-pagination-settings > summary { display: grid; place-items: center; width: 28px; height: 38px; border-left: 1px solid var(--line); border-radius: 0 8px 8px 0; color: var(--muted); cursor: pointer; list-style: none; }
+.docx-pagination-settings > summary::-webkit-details-marker { display: none; }
+.docx-pagination-settings[open] > summary, .docx-pagination-settings > summary:hover { color: var(--green-ink); background: var(--green-pale); }
+.docx-pagination-toggle:focus-visible, .docx-pagination-settings > summary:focus-visible { outline: 3px solid rgba(22, 117, 101, .25); outline-offset: 2px; }
+.docx-pagination-panel { position: absolute; z-index: 1; top: calc(100% + 10px); right: 0; width: min(300px, calc(100vw - 24px)); padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface-raised); box-shadow: var(--shadow); }
+.docx-pagination-panel label { display: block; margin-bottom: 8px; font-size: 13px; font-weight: 650; }
+.docx-pagination-panel input { width: 100%; padding: 8px 10px; border: 1px solid var(--field-line); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 13px; }
+.docx-pagination-panel input:focus-visible { outline: 2px solid var(--green); outline-offset: 1px; }
+.docx-pagination-panel p { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+.docx-pagination-panel code { overflow-wrap: anywhere; }
 .export-button-secondary { border: 1px solid var(--active-line); background: var(--surface-raised); color: var(--green-ink); box-shadow: none; }
 .export-button:disabled { opacity: .72; cursor: wait; }
 .export-button:not(:disabled):hover { background: var(--green-hover); transform: translateY(-1px); }
@@ -237,6 +256,10 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 
+@media (max-width: 1380px) {
+  .export-actions .export-button { width: 40px; padding: 0; flex: none; }
+  .export-actions .export-button span { display: none; }
+}
 @media (max-width: 1180px) {
   .workspace { grid-template-columns: var(--sidebar-width, 260px) minmax(0, 1fr); }
   .workspace.sidebar-hidden { grid-template-columns: 0 minmax(0, 1fr); }
@@ -248,6 +271,12 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
   .mode-button { width: 40px; padding: 0; }
   .mode-button span { display: none; }
 }
+@media (max-width: 1000px) {
+  .topbar:has(.export-actions) { height: 118px; flex-wrap: wrap; align-content: center; }
+  .export-actions { flex-basis: 100%; justify-content: flex-end; }
+  .app-shell:has(.export-actions) .workspace:not(.reading-mode) { padding-top: 118px; }
+  .app-shell:has(.export-actions) .sidebar { top: 118px; }
+}
 @media (max-width: 900px) {
   .workspace.reading-mode { grid-template-columns: minmax(0, 1fr); }
   .workspace.reading-mode .toc-panel { z-index: 45; width: min(82vw, 300px); transform: translateX(102%); border-left: 1px solid var(--line); box-shadow: -18px 0 55px rgba(12, 26, 22, .18); transition: transform .22s ease, background-color .2s ease, border-color .2s ease; }
@@ -258,6 +287,9 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
 }
 @media (max-width: 780px) {
   .topbar { height: 62px; padding: 0 12px; gap: 7px; }
+  .topbar:has(.export-actions) { height: 110px; }
+  .app-shell:has(.export-actions) .workspace:not(.reading-mode) { padding-top: 110px; }
+  .app-shell:has(.export-actions) .sidebar { top: 0; }
   .brand small { display: none; }
   .brand-mark { width: 33px; height: 33px; }
   .close-sidebar { display: grid; }
@@ -278,6 +310,7 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
   .font-size-control { padding: 0 7px; }
   .font-size-control svg { display: none; }
   .font-size-control select { min-width: 98px; font-size: 11px; }
+  .docx-pagination-panel { position: fixed; top: 116px; right: 12px; }
   .theme-toggle { width: 40px; padding: 0; }
 }
 @media (max-width: 520px) {
@@ -287,6 +320,8 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
   .export-actions { gap: 5px; }
   .font-size-control { min-height: 36px; }
   .font-size-control select { min-width: 86px; max-width: 86px; }
+  .docx-pagination-toggle { gap: 4px; padding: 0 5px; font-size: 11px; }
+  .docx-pagination-settings > summary { width: 24px; }
   .export-button { width: 40px; padding: 0; }
   .export-button span { display: none; }
   .reading-mode-document-title { display: none; }
@@ -321,6 +356,7 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
   html, body, .app-shell, .workspace, .document-stage { background: white !important; }
   .topbar, .sidebar, .toc-panel, .reading-mode-toolbar, .reading-toc-backdrop { display: none !important; }
   .workspace { display: block; padding: 0; }
+  .app-shell:has(.export-actions) .workspace:not(.reading-mode) { padding-top: 0; }
   .document-stage { padding: 0; }
   .markdown-continuous { max-width: none; min-height: 0; padding: 0; border: 0; box-shadow: none; }
   .markdown-paper h1, .markdown-paper h2, .markdown-paper h3, .markdown-paper h4,

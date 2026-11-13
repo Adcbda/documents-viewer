@@ -104,7 +104,7 @@ test("offers Markdown download, DOCX export, and print-ready PDF", async () => {
   assert.match(page, /aria-label="导出 DOCX"/);
   assert.match(page, /aria-label="选择 DOCX 正文字号"/);
   assert.match(page, /label: "六号", value: 7\.5/);
-  assert.match(page, /\{ bodyFontSize \}/);
+  assert.match(page, /bodyFontSize,\s*pageBreaks: docxPageBreaks,\s*customPageBreakMarker,/);
   assert.match(page, /aria-label="导出 PDF"/);
   assert.match(page, /window\.print\(\)/);
   assert.match(page, /data-markdown-document/);

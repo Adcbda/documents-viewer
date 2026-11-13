@@ -17,4 +17,4 @@ services:
       PORT: 3000
       LIBRARY_DIR: /library
     volumes:
-      - /data/rag/ocr-output:/library:ro
+      - ./documents:/library:ro

@@ -3,6 +3,7 @@
 .codex_tmp
 tmp
 server
+documents
 
 **/node_modules
 **/.next

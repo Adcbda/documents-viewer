@@ -36,15 +36,15 @@ Linux/macOS 可使用 `APP_PORT=8080 docker compose up -d --build`。停止服�
 docker compose down
 ```
 
-Compose 会把宿主机的 `server` 目录只读挂载到容器的 `/library`：
+Compose 会把宿主机的 `documents` 目录只读挂载到容器的 `/library`：
 
 ```text
-./server:/library:ro
+./documents:/library:ro
 ```
 
 修改、增加或删除文档后刷新网页即可生效，无需重建镜像或重启容器。代码有更新时，仍需再次执行 `docker compose up -d --build`。
 
-Docker 构建上下文会排除 `server` 和 `web/public/library`，构建阶段也会跳过文档同步，因此镜像层中不包含文档内容。容器必须通过 Compose 挂载或自行挂载文档目录后才能显示文档。
+Docker 构建上下文会排除 `documents` 和 `web/public/library`，构建阶段也会跳过文档同步，因此镜像层中不包含文档内容。容器必须通过 Compose 挂载或自行挂载文档目录后才能显示文档。
 
 ## 本地部署（Windows / PowerShell）
 
@@ -85,6 +85,16 @@ npm run start -- --hostname 0.0.0.0
 ```powershell
 npm run dev -- --hostname 0.0.0.0 --port 8080
 ```
+
+## Markdown 按页导出 Word
+
+工具栏的“按页导出”开关默认关闭。开启后，点击“导出 DOCX”会把 Markdown 中独占一行的分页标记转换为 Word 强制分页符，开关和自定义标记会在当前浏览器中保存。
+
+内置支持 `<div style="page-break-after: always;"></div>`、`page-break-before: always`、`break-before: page` / `break-after: page` 等空 HTML 元素分页样式，以及 `<!-- pagebreak -->`、`<!-- page-break -->`、`\newpage` 和 `\pagebreak`。
+
+点击开关旁的设置按钮，可输入一个自定义分页符，例如 `===分页===`。标记按整行文字精确匹配（忽略两端空白），无需空行分隔；留空时只识别内置分页符。普通 Markdown 分隔线不会自动分页，如需使用 `---` 分页，可将它设为自定义标记。
+
+代码块和行内代码中的示例不触发分页。连续分页标记会合并，文档首尾的分页标记不会额外生成空白页。分页会强制下一部分从新页开始，超出一页容量的内容仍会自然续页。
 
 ## Quick Start
 
