@@ -21,6 +21,7 @@ import {
 import { unified } from "unified";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
+import { normalizePageBreaks, PAGE_BREAK_MARKER } from "./markdown-pagination.ts";
 
 type MarkdownNode = { type: string; value?: unknown; children?: MarkdownNode[]; [key: string]: unknown };
 type InlineFormatting = { bold?: boolean; italics?: boolean; strike?: boolean };
@@ -40,54 +41,6 @@ const TEXT_COLOR = "263B36";
 const GREEN = "167565";
 const LIGHT_GREEN = "E8F2EE";
 const LINE = "D8E1DD";
-const PAGE_BREAK_MARKER = "<!-- pagebreak -->";
-
-function isPageBreakMarker(value: string) {
-  if (/^<!--\s*page[\s-]*break\s*-->$/i.test(value) || /^\\(?:newpage|pagebreak)$/.test(value)) return true;
-
-  // Only empty elements are separators; a styled element containing text must
-  // not have its contents mistaken for a pagination instruction.
-  const element = /^<(div|p|span|section)\b([^<>]*?)(?:\/\s*>|>\s*<\/\1\s*>)$/i.exec(value)
-    ?? /^<(br|hr)\b([^<>]*?)\/?\s*>$/i.exec(value);
-  if (!element) return false;
-  const style = /(?:^|\s)style\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/i.exec(element[2]);
-  const declarations = style?.[1] ?? style?.[2] ?? style?.[3] ?? "";
-  return /(?:^|;)\s*(?:page-break-(?:before|after)\s*:\s*always|break-(?:before|after)\s*:\s*(?:page|always))\s*(?:!important\s*)?(?:;|$)/i.test(declarations);
-}
-
-function normalizePageBreaks(markdown: string, tree: MarkdownNode, customMarker?: string) {
-  const custom = customMarker?.trim();
-  const protectedRanges: { start: number; end: number }[] = [];
-  const collectProtectedRanges = (node: MarkdownNode) => {
-    const position = node.position as { start: { offset?: number }; end: { offset?: number } } | undefined;
-    const rawHtml = node.type === "html" ? String(node.value ?? "").trim() : "";
-    if (node.type === "code" || node.type === "inlineCode"
-      || /^<(?:pre|script|style|textarea)\b/i.test(rawHtml)
-      || (rawHtml.startsWith("<!--") && !isPageBreakMarker(rawHtml) && rawHtml !== custom)) {
-      if (position?.start.offset !== undefined && position.end.offset !== undefined) {
-        protectedRanges.push({ start: position.start.offset, end: position.end.offset });
-      }
-      return;
-    }
-    for (const child of node.children ?? []) collectProtectedRanges(child);
-  };
-  collectProtectedRanges(tree);
-
-  // Work on source lines rather than text-node values: Markdown unescapes text,
-  // and a custom marker may itself parse as a horizontal rule. Reparse the whole
-  // normalized document so references and surrounding Markdown remain intact.
-  let offset = 0;
-  return markdown.split(/(\r\n|\r|\n)/).map((part, index) => {
-    const start = offset;
-    offset += part.length;
-    if (index % 2) return part;
-    const trimmed = part.trim();
-    if (!isPageBreakMarker(trimmed) && (!custom || /[\r\n]/.test(custom) || trimmed !== custom)) return part;
-    if (protectedRanges.some((range) => start < range.end && offset > range.start)) return part;
-    return `\n\n${PAGE_BREAK_MARKER}\n\n`;
-  }).join("");
-}
-
 function createTypography(options: DocxExportOptions = {}): DocxTypography {
   const bodyFontSize = Math.min(72, Math.max(5, options.bodyFontSize ?? 10.5));
   const body = Math.round(bodyFontSize * 2);

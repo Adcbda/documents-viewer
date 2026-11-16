@@ -12,6 +12,7 @@ import { buildDocumentTree, documentMatchesQuery, type DocumentDirectory, type L
 import { getDocumentViewerUrl, resolveDocumentLink } from "../lib/document-links";
 import { markdownHtmlSanitizeSchema } from "../lib/markdown-html";
 import { countMarkdownLines } from "../lib/markdown-stats";
+import { getMarkdownHeadings, remarkDocumentPagination, rehypeDocumentPagination } from "../lib/markdown-pagination";
 
 type Heading = { id: string; level: number; text: string };
 type ExportFormat = "markdown" | "docx" | "pdf";
@@ -43,6 +44,7 @@ const THEME_STORAGE_KEY = "document-viewer-theme";
 const SIDEBAR_WIDTH_STORAGE_KEY = "document-viewer-sidebar-width";
 const SIDEBAR_VISIBILITY_STORAGE_KEY = "document-viewer-sidebar-visible";
 const DOCX_PAGINATION_STORAGE_KEY = "document-viewer-docx-pagination";
+const DISPLAY_PAGINATION_STORAGE_KEY = "document-viewer-display-pagination";
 const DEFAULT_SIDEBAR_WIDTH = 260;
 const MIN_SIDEBAR_WIDTH = 220;
 const MAX_SIDEBAR_WIDTH = 480;
@@ -56,15 +58,11 @@ function slugify(value: string, index: number) {
   return `${slug || "section"}-${index}`;
 }
 
-function findHeadings(markdown: string): Heading[] {
-  let index = 0;
-  return markdown.split("\n").map((line) => {
-    const match = /^(#{1,3})\s+(.+?)\s*#*$/.exec(line);
-    if (!match) return null;
-    const heading = { id: slugify(match[2], index), level: match[1].length, text: match[2] };
-    index += 1;
-    return heading;
-  }).filter((heading): heading is Heading => heading !== null);
+function findHeadings(markdown: string, enabled: boolean, marker: string): Heading[] {
+  return getMarkdownHeadings(markdown, { enabled, marker }).map((heading, index) => ({
+    ...heading,
+    id: slugify(heading.text, index),
+  }));
 }
 
 function scrollToDocumentAnchor(hash: string, headings: Heading[]) {
@@ -120,6 +118,8 @@ function MarkdownContent({
   lineCount,
   documents,
   selectDocument,
+  paginated,
+  pageSeparator,
 }: {
   markdown: string;
   documentPath: string;
@@ -127,21 +127,24 @@ function MarkdownContent({
   lineCount: number;
   documents: LibraryDocument[];
   selectDocument: (document: LibraryDocument, hash?: string) => void;
+  paginated: boolean;
+  pageSeparator: string;
 }) {
   let headingIndex = 0;
   const headingComponent = (level: 1 | 2 | 3) => {
     const Component = `h${level}` as "h1" | "h2" | "h3";
-    return function MarkdownHeading({ children }: { children?: React.ReactNode }) {
+    return function MarkdownHeading({ children, id, className }: { children?: React.ReactNode; id?: string; className?: string }) {
+      if (id === "footnote-label" || id === "user-content-footnote-label") return <Component id={id} className={className}>{children}</Component>;
       const heading = headings[headingIndex++];
-      return <Component id={heading?.id}>{children}</Component>;
+      return <Component id={heading?.id ?? id} className={className}>{children}</Component>;
     };
   };
 
   return (
     <>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkMath]}
-        rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownHtmlSanitizeSchema], rehypeKatex]}
+        remarkPlugins={[remarkGfm, remarkMath, [remarkDocumentPagination, { enabled: paginated, marker: pageSeparator }]]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, markdownHtmlSanitizeSchema], rehypeKatex, [rehypeDocumentPagination, { enabled: paginated }]]}
         components={{
           h1: headingComponent(1), h2: headingComponent(2), h3: headingComponent(3),
           a: ({ href, children, title, className, id, target, rel, download }) => {
@@ -182,6 +185,46 @@ function MarkdownContent({
       </ReactMarkdown>
       <footer className="document-footer"><span>文档结束</span><p>共 {lineCount.toLocaleString("zh-CN")} 行 · 内容来自本地 Markdown 文件</p></footer>
     </>
+  );
+}
+
+function DisplayPaginationControl({ enabled, marker, onChange, idPrefix = "display" }: {
+  enabled: boolean;
+  marker: string;
+  onChange: (enabled: boolean, marker: string) => void;
+  idPrefix?: string;
+}) {
+  return (
+    <div className="docx-pagination-control display-pagination-control">
+      <button
+        className="docx-pagination-toggle"
+        type="button"
+        role="switch"
+        aria-checked={enabled}
+        aria-label="按页展示"
+        title="按分隔符分成独立页面展示"
+        onClick={() => onChange(!enabled, marker)}
+      >
+        <span className="docx-pagination-track" aria-hidden="true" />
+        <span>按页展示</span>
+      </button>
+      <details className="docx-pagination-settings">
+        <summary aria-label="按页展示设置" title="自定义展示分隔符"><SlidersHorizontal size={15} aria-hidden="true" /></summary>
+        <div className="docx-pagination-panel">
+          <label htmlFor={`${idPrefix}-page-separator`}>自定义分隔符</label>
+          <input
+            id={`${idPrefix}-page-separator`}
+            type="text"
+            placeholder="例如：--- 或 ===分页==="
+            value={marker}
+            onChange={(event) => onChange(enabled, event.target.value)}
+            aria-describedby={`${idPrefix}-pagination-help`}
+          />
+          <p id={`${idPrefix}-pagination-help`}>开启“按页展示”后生效。分隔符需独占一行，忽略两端空白；留空时仅识别内置分页符。代码示例中的标记不会分页。</p>
+          <p>内置支持 HTML 分页样式、<code>{"<!-- pagebreak -->"}</code>、<code>{"\\newpage"}</code> 等。每段显示为一页，内容较长时页面自动增高。</p>
+        </div>
+      </details>
+    </div>
   );
 }
 
@@ -251,11 +294,29 @@ export default function Home() {
   const [bodyFontSize, setBodyFontSize] = useState(10.5);
   const [docxPageBreaks, setDocxPageBreaks] = useState(false);
   const [customPageBreakMarker, setCustomPageBreakMarker] = useState("");
+  const [paginatedDisplay, setPaginatedDisplay] = useState(false);
+  const [displayPageSeparator, setDisplayPageSeparator] = useState("");
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH);
   const [sidebarResizing, setSidebarResizing] = useState(false);
   const sidebarWidthRef = useRef(DEFAULT_SIDEBAR_WIDTH);
   const appShellRef = useRef<HTMLElement | null>(null);
   const nativeFullscreenActiveRef = useRef(false);
+
+  useEffect(() => {
+    let restoreFrame = 0;
+    try {
+      const saved = JSON.parse(window.localStorage.getItem(DISPLAY_PAGINATION_STORAGE_KEY) ?? "null");
+      if (saved && typeof saved === "object") {
+        restoreFrame = window.requestAnimationFrame(() => {
+          setPaginatedDisplay(saved.enabled === true);
+          if (typeof saved.marker === "string") setDisplayPageSeparator(saved.marker.replace(/[\r\n]/g, ""));
+        });
+      }
+    } catch {
+      // Display pagination remains available when storage is disabled.
+    }
+    return () => window.cancelAnimationFrame(restoreFrame);
+  }, []);
 
   useEffect(() => {
     let restoreFrame = 0;
@@ -429,7 +490,7 @@ export default function Home() {
     return () => controller.abort();
   }, [activeDocument]);
 
-  const headings = useMemo(() => findHeadings(markdown), [markdown]);
+  const headings = useMemo(() => findHeadings(markdown, paginatedDisplay, displayPageSeparator), [markdown, paginatedDisplay, displayPageSeparator]);
   useEffect(() => {
     if (!activeDocument || (activeDocument.kind === "markdown" && !markdown)) return;
     scrollToDocumentAnchor(documentHash, headings);
@@ -566,6 +627,16 @@ export default function Home() {
       // The chosen settings still apply to exports in this session.
     }
   };
+  const updateDisplayPagination = (enabled: boolean, marker: string) => {
+    const separator = marker.replace(/[\r\n]/g, "");
+    setPaginatedDisplay(enabled);
+    setDisplayPageSeparator(separator);
+    try {
+      window.localStorage.setItem(DISPLAY_PAGINATION_STORAGE_KEY, JSON.stringify({ enabled, marker: separator }));
+    } catch {
+      // Keep applying the current display settings without browser storage.
+    }
+  };
   const exportPdf = async () => {
     if (!activeDocument || !markdown || exportState.status === "working") return;
     setExportState({ format: "pdf", status: "working" });
@@ -611,6 +682,9 @@ export default function Home() {
           <span><strong>文档阅览室</strong><small>MARKDOWN DESK</small></span>
         </a>
         <div className="topbar-spacer" />
+        {activeDocument?.kind === "markdown" && (
+          <DisplayPaginationControl enabled={paginatedDisplay} marker={displayPageSeparator} onChange={updateDisplayPagination} />
+        )}
         {activeDocument?.kind === "markdown" && (
           <button
             className={`mode-button ${wideMode ? "active" : ""}`}
@@ -696,6 +770,7 @@ export default function Home() {
           <span className="reading-mode-document-title">{activeDocument?.title ?? "文档阅读"}</span>
           {activeDocument?.kind === "markdown" && (
             <>
+              <DisplayPaginationControl enabled={paginatedDisplay} marker={displayPageSeparator} onChange={updateDisplayPagination} idPrefix="reading" />
               <button
                 className={`reading-mode-action ${wideMode ? "active" : ""}`}
                 type="button"
@@ -768,7 +843,7 @@ export default function Home() {
           ) : !markdown ? (
             <div className="loading-state"><span /><p>正在整理文档版面…</p></div>
           ) : (
-            <article className="markdown-paper markdown-continuous" data-markdown-document style={documentTypographyStyle(bodyFontSize)}>
+            <article className={paginatedDisplay ? "markdown-paginated" : "markdown-paper markdown-continuous"} data-markdown-document style={documentTypographyStyle(bodyFontSize)}>
               <MarkdownContent
                 markdown={markdown}
                 documentPath={activeDocument?.file ?? ""}
@@ -776,6 +851,8 @@ export default function Home() {
                 lineCount={markdownLineCount}
                 documents={documents}
                 selectDocument={selectDocument}
+                paginated={paginatedDisplay}
+                pageSeparator={displayPageSeparator}
               />
             </article>
           )}

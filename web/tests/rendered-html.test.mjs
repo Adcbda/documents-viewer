@@ -112,7 +112,8 @@ test("offers Markdown download, DOCX export, and print-ready PDF", async () => {
   assert.match(css, /break-inside:\s*avoid/);
   assert.match(css, /\.markdown-continuous\s*\{/);
   assert.doesNotMatch(page, /A4 分页预览|splitCodeBlockAcrossPages|PaginatedMarkdownPreview/);
-  assert.doesNotMatch(css, /markdown-page|pagination-measure|code-(?:truncated|continued|has-continuation)/);
+  assert.match(css, /\.markdown-page \+ \.markdown-page\s*\{\s*break-before:\s*page/);
+  assert.doesNotMatch(css, /pagination-measure|code-(?:truncated|continued|has-continuation)/);
 });
 
 test("shows the Markdown source line count in the document footer", async () => {
@@ -142,8 +143,8 @@ test("renders sanitized HTML and LaTeX embedded in Markdown", async () => {
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
   ]);
 
-  assert.match(page, /remarkPlugins=\{\[remarkGfm, remarkMath\]\}/);
-  assert.match(page, /rehypePlugins=\{\[rehypeRaw, \[rehypeSanitize, markdownHtmlSanitizeSchema\], rehypeKatex\]\}/);
+  assert.match(page, /remarkPlugins=\{\[remarkGfm, remarkMath,/);
+  assert.match(page, /rehypePlugins=\{\[rehypeRaw, \[rehypeSanitize, markdownHtmlSanitizeSchema\], rehypeKatex,/);
   assert.match(layout, /import "katex\/dist\/katex\.min\.css"/);
   assert.match(page, /style=\{width === undefined \? style : \{ width: imageWidthStyle\(width\), \.\.\.style \}\}/);
 });

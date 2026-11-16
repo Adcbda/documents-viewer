@@ -16,6 +16,9 @@ const elementsWithInlineStyles = [
 
 const attributes = { ...defaultSchema.attributes };
 
+// A single internal flag survives sanitization for the pagination renderer.
+attributes.hr = [...(attributes.hr ?? []), ["dataDocumentPageBreak", "true"]];
+
 for (const tagName of elementsWithInlineStyles) {
   attributes[tagName] = [...(attributes[tagName] ?? []), "style"];
 }

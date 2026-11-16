@@ -197,7 +197,12 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
 .pdf-fallback a { padding: 9px 14px; border-radius: 8px; background: var(--green); color: white; font-size: 12px; font-weight: 700; text-decoration: none; }
 .markdown-paper { background: var(--paper); border: 1px solid var(--paper-line); box-shadow: var(--shadow); transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease; }
 .markdown-continuous { max-width: 860px; min-height: 900px; margin: 0 auto; padding: 64px 72px; }
-.workspace.wide-mode .markdown-continuous { width: 100%; max-width: none; }
+.markdown-paginated { max-width: 860px; margin: 0 auto; }
+.markdown-page { min-height: 900px; position: relative; margin-bottom: 28px; padding: 64px 72px 88px; }
+.markdown-page > :first-child { margin-top: 0; }
+.markdown-page-number { position: absolute; bottom: 28px; left: 24px; right: 24px; color: var(--soft-ink); text-align: center; font-size: 11px; }
+.markdown-paginated > .document-footer { margin-top: 40px; }
+.workspace.wide-mode .markdown-continuous, .workspace.wide-mode .markdown-paginated { width: 100%; max-width: none; }
 .markdown-paper > h1:first-child { margin-top: 0; padding-bottom: 24px; border-bottom: 1px solid var(--line); font-size: var(--document-title-font-size, 19pt); line-height: 1.2; letter-spacing: -.035em; }
 .markdown-paper h1, .markdown-paper h2, .markdown-paper h3 { color: var(--heading-ink); scroll-margin-top: 94px; font-family: "Microsoft YaHei UI", sans-serif; }
 .markdown-paper h1 { margin: 1.6em 0 .7em; font-size: var(--document-title-font-size, 19pt); }
@@ -235,8 +240,8 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
 .workspace.reading-mode { height: 100%; min-height: 0; overflow: hidden; padding-top: 0; grid-template-columns: minmax(0, 1fr) 240px; }
 .workspace.reading-mode .sidebar { display: none; }
 .workspace.reading-mode .document-stage { grid-column: 1; height: 100%; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior-y: contain; -webkit-overflow-scrolling: touch; padding: 36px clamp(24px, 5vw, 84px) 80px; }
-.workspace.reading-mode .markdown-continuous { max-width: 900px; }
-.workspace.reading-mode.wide-mode .markdown-continuous { max-width: none; }
+.workspace.reading-mode .markdown-continuous, .workspace.reading-mode .markdown-paginated { max-width: 900px; }
+.workspace.reading-mode.wide-mode .markdown-continuous, .workspace.reading-mode.wide-mode .markdown-paginated { max-width: none; }
 .workspace.reading-mode .toc-panel { display: block; top: 0; width: 240px; padding-top: 34px; }
 .reading-mode-toolbar { position: fixed; z-index: 55; top: 14px; right: 256px; min-width: 0; display: flex; align-items: center; gap: 7px; padding: 6px; border: 1px solid var(--line); border-radius: 12px; background: var(--topbar); box-shadow: var(--shadow); backdrop-filter: blur(16px); }
 .reading-mode-document-title { max-width: min(28vw, 320px); overflow: hidden; padding: 0 8px; color: var(--muted); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
@@ -259,6 +264,12 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
 @media (max-width: 1380px) {
   .export-actions .export-button { width: 40px; padding: 0; flex: none; }
   .export-actions .export-button span { display: none; }
+}
+@media (min-width: 1001px) and (max-width: 1500px) {
+  .topbar { gap: 8px; padding: 0 16px; }
+  .topbar .font-size-control span { display: none; }
+  .topbar .mode-button { width: 40px; padding: 0; }
+  .topbar .mode-button span { display: none; }
 }
 @media (max-width: 1180px) {
   .workspace { grid-template-columns: var(--sidebar-width, 260px) minmax(0, 1fr); }
@@ -305,12 +316,15 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
   .pdf-toolbar { min-height: 54px; padding: 8px 10px 8px 13px; }
   .pdf-toolbar > a { padding: 8px; }
   .markdown-continuous { padding: 36px 24px; border-radius: 4px; }
+  .markdown-page { min-height: 640px; padding: 36px 24px 72px; border-radius: 4px; margin-bottom: 20px; }
   .markdown-paper table { display: block; overflow-x: auto; white-space: nowrap; }
   .export-button { padding: 0 11px; font-size: 12px; }
   .font-size-control { padding: 0 7px; }
   .font-size-control svg { display: none; }
   .font-size-control select { min-width: 98px; font-size: 11px; }
   .docx-pagination-panel { position: fixed; top: 116px; right: 12px; }
+  .display-pagination-control .docx-pagination-panel { top: 62px; }
+  .reading-mode-toolbar .display-pagination-control .docx-pagination-panel { top: 68px; right: 0; width: min(300px, calc(100vw - 40px)); }
   .theme-toggle { width: 40px; padding: 0; }
 }
 @media (max-width: 520px) {
@@ -322,6 +336,9 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
   .font-size-control select { min-width: 86px; max-width: 86px; }
   .docx-pagination-toggle { gap: 4px; padding: 0 5px; font-size: 11px; }
   .docx-pagination-settings > summary { width: 24px; }
+  .display-pagination-control .docx-pagination-track { display: none; }
+  .display-pagination-control .docx-pagination-toggle[aria-checked="true"] { background: var(--green-pale); }
+  .topbar .mode-button, .topbar .theme-toggle { width: 36px; }
   .export-button { width: 40px; padding: 0; }
   .export-button span { display: none; }
   .reading-mode-document-title { display: none; }
@@ -330,6 +347,7 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
 }
 @media (max-width: 420px) {
   .font-size-control { display: none; }
+  .topbar:has(.display-pagination-control) .brand { display: none; }
 }
 @media print {
   @page { size: A4; margin: 17mm 16mm 18mm; }
@@ -356,9 +374,16 @@ html.sidebar-resizing, html.sidebar-resizing * { cursor: col-resize !important; 
   html, body, .app-shell, .workspace, .document-stage { background: white !important; }
   .topbar, .sidebar, .toc-panel, .reading-mode-toolbar, .reading-toc-backdrop { display: none !important; }
   .workspace { display: block; padding: 0; }
+  .workspace.reading-mode { display: block; }
   .app-shell:has(.export-actions) .workspace:not(.reading-mode) { padding-top: 0; }
   .document-stage { padding: 0; }
   .markdown-continuous { max-width: none; min-height: 0; padding: 0; border: 0; box-shadow: none; }
+  .markdown-paginated, .workspace.reading-mode .markdown-paginated { max-width: none; }
+  .markdown-page { min-height: 0; margin: 0; padding: 0; border: 0; box-shadow: none; }
+  .markdown-page + .markdown-page { break-before: page; page-break-before: always; }
+  .markdown-page-number { display: none; }
+  .reading-mode-active, .workspace.reading-mode, .workspace.reading-mode .document-stage { height: auto; overflow: visible; }
+  .workspace.reading-mode .document-stage { padding: 0; }
   .markdown-paper h1, .markdown-paper h2, .markdown-paper h3, .markdown-paper h4,
   .markdown-paper blockquote, .markdown-paper table,
   .markdown-paper img { break-inside: avoid; page-break-inside: avoid; }
